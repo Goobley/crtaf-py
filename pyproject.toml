@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools >= 61.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crtaf"
+authors = [
+    {name = "Chris Osborne", email = "software@contextuallight.com"},
+]
+description = "Common Radiative Transfer Atomic Format"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "numpy",
+    "pyyaml",
+    "pydantic",
+    "pydantic_numpy",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = ["pytest"]
