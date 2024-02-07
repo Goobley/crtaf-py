@@ -1,8 +1,8 @@
 from enum import Enum
-from typing import Any, ClassVar, List, Optional, Union
-from typing_extensions import Annotated, Unpack
+from typing import Any, ClassVar, List, Literal, Optional, Union
+from typing_extensions import Annotated
 import numpy as np
-from pydantic import BaseModel, Discriminator, Field, GetCoreSchemaHandler, StringConstraints, Tag, field_serializer, constr
+from pydantic import BaseModel, GetCoreSchemaHandler, SerializeAsAny, StringConstraints, ValidatorFunctionWrapHandler, field_serializer, field_validator, model_serializer, model_validator
 from pydantic.config import ConfigDict
 import pydantic_core.core_schema as core_schema
 from pydantic_numpy import NpNDArrayFp64
@@ -138,39 +138,119 @@ class SimplifiedAtomicBoundBound(AtomicBoundBound):
     lambda0: AstropyQty
 
 class AtomicBoundFree(BaseModel):
+    _is_polymorphic_base: ClassVar = True
     _registry: ClassVar = {}
 
     type: str
-    transition: List[str] # TODO val
+    transition: List[str]
 
-    def __init_subclass__(cls, rate_name: str, **kwargs: ConfigDict):
+    def __init_subclass__(cls, rate_name: str, is_polymorphic_base: bool = False, **kwargs: ConfigDict):
         cls._registry[rate_name] = cls
+        cls._is_polymorphic_base = is_polymorphic_base
         return super().__init_subclass__(**kwargs)
 
-    @staticmethod
-    def get_discriminator_value(v: Any):
-        if isinstance(v, dict):
-            return v["type"]
-        return getattr(v, "type")
+    # NOTE(cmo): Inspired by
+    # https://github.com/pydantic/pydantic/discussions/7008#discussioncomment-6826052
+    @model_validator(mode="wrap")
+    @classmethod
+    def _reify_type(cls, v: Any, handler: ValidatorFunctionWrapHandler):
+        # NOTE(cmo): If it's already an object pass it to the default validator
+        if not isinstance(v, dict):
+            return handler(v)
 
-    # @classmethod
-    # def get_union_types(cls) -> Union:
-    #     types = []
-    #     for k, v in cls._registry.items():
-    #         types.append(Annotated[v, Tag(k)])
-    #     return Union[*tuple(types)]
+        # NOTE(cmo): If someone has requested a derived type directly, just pass it over.
+        if not cls._is_polymorphic_base:
+            return handler(v)
 
-# https://typethepipe.com/post/pydantic-discriminated-union/
-# https://github.com/pydantic/pydantic/discussions/7008
-# https://docs.pydantic.dev/latest/concepts/serialization/#serializing-with-duck-typing
+        # NOTE(cmo): Otherwise lookup the type in the dict and registry.
+        t = v["type"]
+        if t not in cls._registry:
+            # TODO(cmo): Do a levenstein lookup for suggestion?
+            raise ValueError(f"Type {t} is not in the known types for AtomicBoundFree ({cls._registry.keys()})")
 
-class HydrogenicBoundFree(AtomicBoundFree, rate_name="Hydrogenic"):
+        return cls._registry[t].model_validate(v)
+
+    @field_validator("transition")
+    @classmethod
+    def _validate_transition(cls, v: Any):
+        length = len(v)
+        if length != 2:
+            raise ValueError(f"Transitions can only be between two levels, got {v}")
+        return v
+
+
+AtomicBoundFreeImpl = SerializeAsAny[AtomicBoundFree]
+
+class HydrogenicBoundFree(AtomicBoundFreeImpl, rate_name="Hydrogenic"):
+    type: Literal["Hydrogenic"]
     sigma_peak: AstropyQty
     lambda_min: AstropyQty
     n_lambda: int
 
-# class BfHolder(BaseModel):
-#     bf: Annotated[AtomicBoundFree.get_union_types(), Discriminator(AtomicBoundFree.get_discriminator_value)]
+class TabulatedBoundFreeIntermediate(BaseModel):
+    type: Literal["Tabulated"]
+    transition: List[str]
+    unit: List[str]
+    value: NpNDArrayFp64
+
+    @field_validator("unit")
+    @classmethod
+    def _validate_unit_list(cls, v: Any):
+        length = len(v)
+        if length != 2:
+            raise ValueError(f"Expected 2 units, got {length}.")
+        return v
+
+    @field_validator("value")
+    @classmethod
+    def _validate_value(cls, v: Any):
+        if len(v.shape) != 2:
+            raise ValueError(f"Expected 2D array, got {len(v.shape)}D.")
+        if v.shape[0] < 2:
+            raise ValueError(f"Expected at least 2 rows of (wavelength, cross-section), got {v.shape[0]}.")
+        return v
+
+class TabulatedBoundFree(AtomicBoundFreeImpl, rate_name="Tabulated"):
+    type: Literal["Tabulated"]
+    wavelengths: AstropyQty
+    sigma: AstropyQty
+
+    @model_validator(mode='wrap')
+    @classmethod
+    def _validate(cls, v: Any, handler: ValidatorFunctionWrapHandler):
+        if not isinstance(v, dict):
+            return handler(v)
+
+        intermediate = TabulatedBoundFreeIntermediate.model_validate(v)
+        wavelength_unit = u.Unit(intermediate.unit[0])
+        assert wavelength_unit.is_equivalent(u.m, equivalencies=u.spectral()), "Wavelength unit (first unit) is not convertible to length."
+        sigma_unit = u.Unit(intermediate.unit[1])
+        assert sigma_unit.is_equivalent('m2'), "Cross-section unit (second unit) is not convertible to area."
+        wavelengths = np.ascontiguousarray(intermediate.value[:, 0])
+        sigma = np.ascontiguousarray(intermediate.value[:, 1])
+
+        return handler({
+            "type": intermediate.type,
+            "transition": intermediate.transition,
+            "wavelengths": wavelengths << wavelength_unit,
+            "sigma": sigma << sigma_unit,
+        })
+
+    @model_serializer
+    def _serialise(self):
+        value = np.hstack((self.wavelengths.value[:, None], self.sigma.value[:, None]))
+        value = value.tolist()
+        unit = [self.wavelengths.unit.to_string(), self.sigma.unit.to_string()]
+        return {
+            "type": self.type,
+            "transition": self.transition,
+            "unit": unit,
+            "value": value,
+        }
+
+
+class BfHolder(BaseModel):
+    bf: AtomicBoundFreeImpl
 
 class Atom(BaseModel):
     meta: Metadata
