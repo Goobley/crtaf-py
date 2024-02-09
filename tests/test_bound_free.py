@@ -1,6 +1,9 @@
-from crtaf.core_types import AtomicBoundFreeImpl, BfHolder, HydrogenicBoundFree, TabulatedBoundFree
+import astropy.units as u
 import pydantic
 import pytest
+
+from crtaf.core_types import AtomicBoundFreeImpl, BfHolder, HydrogenicBoundFree, TabulatedBoundFree
+from pytest import approx
 
 def test_hydrogenic_basic():
     data = {
@@ -88,6 +91,33 @@ def test_hydrogenic_round_trip():
     m = AtomicBoundFreeImpl.model_validate(data)
     dump = m.model_dump()
     AtomicBoundFreeImpl.model_validate(dump)
+
+def test_hydrogenic_unit_conversion():
+    data = {
+        "type": "Hydrogenic",
+        "transition": ["1", "2"],
+        "sigma_peak": {
+            "unit": "m^2",
+            "value": 123.4,
+        },
+        "lambda_min": {
+            "unit": "nm",
+            "value": 92.5,
+        },
+        "n_lambda": 20
+    }
+
+    m = AtomicBoundFreeImpl.model_validate(data)
+    def conversion(q: u.Quantity):
+        if q.unit.physical_type == 'area':
+            return q.to(u.cm**2)
+        if q.unit.physical_type == 'length':
+            return q.to(u.cm)
+    m.apply_unit_conversion(conversion)
+
+    assert m.sigma_peak.value == approx(123.4 * 100 * 100)
+    assert m.lambda_min.value == approx(92.5e-7)
+        
 
 def test_hydrogenic_round_trip_json():
     data = {

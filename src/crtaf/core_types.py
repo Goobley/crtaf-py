@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, ClassVar, List, Literal, Optional, Union
+from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Union
 from typing_extensions import Annotated
 import numpy as np
 from pydantic import BaseModel, GetCoreSchemaHandler, SerializeAsAny, StringConstraints, ValidatorFunctionWrapHandler, field_serializer, field_validator, model_serializer, model_validator
@@ -8,6 +8,39 @@ import pydantic_core.core_schema as core_schema
 from pydantic_numpy import NpNDArrayFp64
 import astropy.units as u
 
+class RegisterQuantitiesMixin:
+    """Simple mixin to allow for keeping track of all Quantities on a type and
+    mapping unit conversions. Needs to be applied to a pydantic model`"""
+
+    def qty_children(self):
+        for k, v in self:
+            if isinstance(v, RegisterQuantitiesMixin):
+                yield v
+
+    def named_qty_children(self):
+        for k, v in self:
+            if isinstance(v, RegisterQuantitiesMixin):
+                yield k, v
+
+    def quantities(self):
+        for k, v in self:
+            if isinstance(v, u.Quantity):
+                yield v
+
+    def named_quantities(self):
+        for k, v in self:
+            if isinstance(v, u.Quantity):
+                yield k, v
+
+    def apply_unit_conversion(self, operation: Callable[[u.Quantity], u.Quantity]):
+        for k, v in self.named_quantities():
+            result = operation(v)
+            self.__setattr__(k, result)
+
+        for child in self.qty_children():
+            child.apply_unit_conversion(operation)
+
+
 class DimensionalQuantity(BaseModel):
     unit: str
     value: Union[float, NpNDArrayFp64]
@@ -15,10 +48,6 @@ class DimensionalQuantity(BaseModel):
     @field_serializer("value")
     def serialize_value(self, value, _info):
         return value.tolist()
-
-def make_astropy_qty(*, value, unit):
-    validated_unit = u.Unit(unit)
-    return value << validated_unit
 
 class _AstropyQtyAnnotation:
     @classmethod
@@ -137,7 +166,7 @@ class SimplifiedAtomicBoundBound(AtomicBoundBound):
     Bij_wavelength: AstropyQty
     lambda0: AstropyQty
 
-class AtomicBoundFree(BaseModel):
+class AtomicBoundFree(RegisterQuantitiesMixin, BaseModel):
     _is_polymorphic_base: ClassVar = True
     _registry: ClassVar = {}
 
@@ -219,6 +248,11 @@ class TabulatedBoundFree(AtomicBoundFreeImpl, rate_name="Tabulated"):
     @classmethod
     def _validate(cls, v: Any, handler: ValidatorFunctionWrapHandler):
         if not isinstance(v, dict):
+            return handler(v)
+
+        # NOTE(cmo): This validator can end up being called twice, on an already
+        # adjusted dict, catch that here and pass straight to handler.
+        if "unit" not in v and "value" not in v:
             return handler(v)
 
         intermediate = TabulatedBoundFreeIntermediate.model_validate(v)
