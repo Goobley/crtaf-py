@@ -2,7 +2,7 @@ import astropy.units as u
 import pydantic
 import pytest
 
-from crtaf.core_types import AtomicBoundFreeImpl, BfHolder, HydrogenicBoundFree, TabulatedBoundFree
+from crtaf.core_types import AtomicBoundFree, HydrogenicBoundFree, TabulatedBoundFree
 from pytest import approx
 
 def test_hydrogenic_basic():
@@ -15,7 +15,7 @@ def test_hydrogenic_basic():
         },
         "lambda_min": {
             "unit": "nm",
-            "value": 92.5,
+            "value": 9
         },
         "n_lambda": 20
     }
@@ -71,7 +71,7 @@ def test_hydrogenic_base_type():
         "n_lambda": 20
     }
 
-    AtomicBoundFreeImpl.model_validate(data)
+    AtomicBoundFree.model_validate(data)
 
 def test_hydrogenic_round_trip():
     data = {
@@ -88,9 +88,9 @@ def test_hydrogenic_round_trip():
         "n_lambda": 20
     }
 
-    m = AtomicBoundFreeImpl.model_validate(data)
+    m = AtomicBoundFree.model_validate(data)
     dump = m.model_dump()
-    AtomicBoundFreeImpl.model_validate(dump)
+    AtomicBoundFree.model_validate(dump)
 
 def test_hydrogenic_unit_conversion():
     data = {
@@ -107,7 +107,7 @@ def test_hydrogenic_unit_conversion():
         "n_lambda": 20
     }
 
-    m = AtomicBoundFreeImpl.model_validate(data)
+    m = AtomicBoundFree.model_validate(data)
     def conversion(q: u.Quantity):
         if q.unit.physical_type == 'area':
             return q.to(u.cm**2)
@@ -134,27 +134,9 @@ def test_hydrogenic_round_trip_json():
         "n_lambda": 20
     }
 
-    m = AtomicBoundFreeImpl.model_validate(data)
+    m = AtomicBoundFree.model_validate(data)
     dump = m.model_dump_json()
-    AtomicBoundFreeImpl.model_validate_json(dump)
-
-def test_hydrogenic_bfholder():
-    data = { 'bf': {
-        "type": "Hydrogenic",
-        "transition": ["1", "2"],
-        "sigma_peak": {
-            "unit": "m^2",
-            "value": 123.4,
-        },
-        "lambda_min": {
-            "unit": "nm",
-            "value": 92.5,
-        },
-        "n_lambda": 20
-    }}
-
-    BfHolder.model_validate(data)
-
+    AtomicBoundFree.model_validate_json(dump)
 
 def test_tabulated_bound_free():
     data = {
@@ -168,7 +150,7 @@ def test_tabulated_bound_free():
         ]
     }
 
-    AtomicBoundFreeImpl.model_validate(data)
+    AtomicBoundFree.model_validate(data)
 
 def test_tabulated_direct():
     data = {
@@ -194,9 +176,9 @@ def test_tabulated_round_trip():
             [3, 789e-20],
         ]
     }
-    m = AtomicBoundFreeImpl.model_validate(data)
+    m = AtomicBoundFree.model_validate(data)
     dump = m.model_dump()
-    AtomicBoundFreeImpl.model_validate(dump)
+    AtomicBoundFree.model_validate(dump)
 
 def test_tabulated_round_trip_json():
     data = {
@@ -209,9 +191,9 @@ def test_tabulated_round_trip_json():
             [3, 789e-20],
         ]
     }
-    m = AtomicBoundFreeImpl.model_validate(data)
+    m = AtomicBoundFree.model_validate(data)
     dump = m.model_dump_json()
-    AtomicBoundFreeImpl.model_validate_json(dump)
+    AtomicBoundFree.model_validate_json(dump)
 
 def test_tabulated_bound_free_bad_unit():
     data = {
@@ -226,7 +208,7 @@ def test_tabulated_bound_free_bad_unit():
     }
 
     with pytest.raises(pydantic.ValidationError):
-        AtomicBoundFreeImpl.model_validate(data)
+        AtomicBoundFree.model_validate(data)
 
     data = {
         "type": "Tabulated",
@@ -239,7 +221,7 @@ def test_tabulated_bound_free_bad_unit():
         ]
     }
 
-    AtomicBoundFreeImpl.model_validate(data)
+    AtomicBoundFree.model_validate(data)
 
     data = {
         "type": "Tabulated",
@@ -253,7 +235,7 @@ def test_tabulated_bound_free_bad_unit():
     }
 
     with pytest.raises(pydantic.ValidationError):
-        AtomicBoundFreeImpl.model_validate(data)
+        AtomicBoundFree.model_validate(data)
 
     data = {
         "type": "Tabulated",
@@ -266,7 +248,7 @@ def test_tabulated_bound_free_bad_unit():
         ]
     }
 
-    AtomicBoundFreeImpl.model_validate(data)
+    AtomicBoundFree.model_validate(data)
 
     data = {
         "type": "Tabulated",
@@ -280,7 +262,7 @@ def test_tabulated_bound_free_bad_unit():
     }
 
     with pytest.raises(pydantic.ValidationError):
-        AtomicBoundFreeImpl.model_validate(data)
+        AtomicBoundFree.model_validate(data)
 
 def test_tabulated_bound_1_entry():
     data = {
@@ -293,7 +275,7 @@ def test_tabulated_bound_1_entry():
     }
 
     with pytest.raises(pydantic.ValidationError):
-        AtomicBoundFreeImpl.model_validate(data)
+        AtomicBoundFree.model_validate(data)
 
     data = {
         "type": "Tabulated",
@@ -305,7 +287,7 @@ def test_tabulated_bound_1_entry():
     }
 
     with pytest.raises(pydantic.ValidationError):
-        AtomicBoundFreeImpl.model_validate(data)
+        AtomicBoundFree.model_validate(data)
 
 def test_tabulated_bound_lowercase():
     data = {
@@ -322,4 +304,4 @@ def test_tabulated_bound_lowercase():
     with pytest.raises(pydantic.ValidationError):
         TabulatedBoundFree.model_validate(data)
     with pytest.raises(pydantic.ValidationError):
-        AtomicBoundFreeImpl.model_validate(data)
+        AtomicBoundFree.model_validate(data)
