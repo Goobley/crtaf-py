@@ -152,6 +152,21 @@ def test_tabulated_bound_free():
 
     AtomicBoundFree.model_validate(data)
 
+def test_tabulated_three_level():
+    data = {
+        "type": "Tabulated",
+        "transition": ["lower", "upper", "another"],
+        "unit": ["nm", "m2"],
+        "value": [
+            [1, 123e-20],
+            [2, 456e-20],
+            [3, 789e-20],
+        ]
+    }
+
+    with pytest.raises(pydantic.ValidationError):
+        AtomicBoundFree.model_validate(data)
+
 def test_tabulated_direct():
     data = {
         "type": "Tabulated",
