@@ -99,6 +99,7 @@ Data = {
 def test_atom_construction():
     data = deepcopy(Data)
     a = Atom.model_validate(data)
+    assert a.radiative_bound_free[0].transition[0] == "111third"
 
 def test_atom_simplification():
     data = deepcopy(Data)

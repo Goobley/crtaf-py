@@ -695,17 +695,24 @@ class Atom(BaseModel):
                     f'Transition "{name}" not found on model (seen on {type_name}[{index}]).'
                 )
 
+        def sort_transitions(transitions: List[str]) -> List[str]:
+            # NOTE(cmo): Sort transition keys to be in descending energy order (i.e. [j, i])
+            return sorted(transitions, key=lambda t: self.levels[t].energy, reverse=True)
+
         for i, line in enumerate(self.radiative_bound_bound):
             for j in range(2):
                 test_transition_present(line.transition[j], "radiative_bound_bound", i)
+            line.transition = sort_transitions(line.transition)
 
         for i, cont in enumerate(self.radiative_bound_free):
             for j in range(2):
                 test_transition_present(cont.transition[j], "radiative_bound_free", i)
+            cont.transition = sort_transitions(cont.transition)
 
         for i, coll in enumerate(self.collisional_rates):
             for j in range(2):
                 test_transition_present(coll.transition[j], "collisional_rates", i)
+            coll.transition = sort_transitions(coll.transition)
         return self
 
     def simplify_visit(self, visitor: AtomicSimplificationVisitor):
