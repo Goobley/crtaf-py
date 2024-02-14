@@ -30,7 +30,7 @@ if __name__ == "__main__":
     yaml.dump(rep, stream)
     print(stream.getvalue())
 
-    setattr(rep['radiative_bound_free'][0]['value'], format_attrib, Format().set_flow_style())
+    rep['radiative_bound_free'][0]['value'].fa.set_flow_style()
     stream = StringIO()
     yaml.dump(rep, stream)
     print(stream.getvalue())
