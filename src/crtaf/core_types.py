@@ -21,8 +21,6 @@ import astropy.units as u
 
 # TODO #
 ########
-# - Multiplicative Stark
-# - VdwBarklem
 # - More tests
 
 
@@ -329,6 +327,10 @@ class StarkLinearSutton(LineBroadening, type_name="Stark_Linear_Sutton"):
                 "Must provide both n_upper and n_lower if providing one or the other"
             )
 
+        if self.n_upper is not None:
+            assert self.n_upper > self.n_lower
+            assert self.n_lower > 0
+
         return self
 
     def simplify(
@@ -339,7 +341,16 @@ class StarkLinearSutton(LineBroadening, type_name="Stark_Linear_Sutton"):
 class StarkQuadratic(LineBroadening, type_name="Stark_Quadratic"):
     type: Literal["Stark_Quadratic"]
     scaling: Optional[float] = 1.0
-    C_4: Optional[AstropyQty] = None
+
+    def simplify(
+        self
+    ):
+        raise NotImplementedError()
+
+class StarkMultiplicative(LineBroadening, type_name="Stark_Multiplicative"):
+    type: Literal["Stark_Multiplicative"]
+    C_4: AstropyQty
+    scaling: Optional[float] = 1.0
 
     @field_validator("C_4")
     @classmethod
@@ -350,16 +361,18 @@ class StarkQuadratic(LineBroadening, type_name="Stark_Quadratic"):
             )
         return value
 
-    def simplify(
-        self
-    ):
-        raise NotImplementedError()
-
 
 class VdWUnsold(LineBroadening, type_name="VdW_Unsold"):
+    """
+    Van der Waals collisional broadening following Unsold.
+    See:
+        - Traving 1960, "Uber die Theorie der Druckverbreiterung
+            von Spektrallinien", p 91-97
+        - Mihalas 1978, p. 282ff, and Table 9-1
+    """
     type: Literal["VdW_Unsold"]
-    H_scaling: Optional[float] = 0.0
-    He_scaling: Optional[float] = 0.0
+    H_scaling: float = 1.0
+    He_scaling: float = 1.0
 
     def simplify(
         self
@@ -632,6 +645,11 @@ class TemperatureInterpolationRateImpl(
     def _validate_lengths(self):
         if self.temperature.shape != self.data.shape:
             raise ValueError("Temperature and Data must have the same shape for a TemperatureInterpolationRate.")
+        if self.temperature.ndim != 1:
+            raise ValueError("Temperature and Data must be one-dimensional for a TemperatureInterpolationRate.")
+        if self.temperature.shape[0] < 2:
+            raise ValueError("Temperature and Data must have at least two entries for a TemperatureInterpolationRate.")
+
         return self
 
 
@@ -645,6 +663,12 @@ TemperatureInterpolationRate = SerializeAsAny[TemperatureInterpolationRateImpl]
 
 
 class OmegaRate(TemperatureInterpolationRate, type_name="Omega"):
+    """
+    Collisional excitation of ions by electrons. Seaton's dimensionless
+    collision strength Omega as a function of temperature.
+
+    Scales as 1/(sqrt T) exp(DeltaE)
+    """
     type: Literal["Omega"]
 
     def simplify(
@@ -657,8 +681,167 @@ class OmegaRate(TemperatureInterpolationRate, type_name="Omega"):
             data=self.data
         )
 
+class CIRate(TemperatureInterpolationRate, type_name="CI"):
+    """
+    Collisional ionisation of ions by electrons.
+    Units of s-1 K(-1/2) m3
+
+    Scales as 1/(sqrt T) exp(DeltaE)
+    """
+    type: Literal["CI"]
+
+    @field_validator("data")
+    @classmethod
+    def _validate(cls, v: AstropyQty):
+        v.to("s-1 K(-1/2) m3")
+        return v
+
+    def simplify(
+        self
+    ) -> "CIRate":
+        temperature = self.temperature.to(u.K)
+        data = self.data.to("s-1 K(-1/2) m3")
+        return CIRate(
+            type="CI",
+            temperature=temperature,
+            data=data
+        )
+
+class CERate(TemperatureInterpolationRate, type_name="CE"):
+    """
+    Collisional excitation of neutrals by electrons.
+    Units of s-1 K(-1/2) m3
+
+    Scales as 1/(sqrt T) exp(DeltaE)
+    """
+    type: Literal["CE"]
+
+    @field_validator("data")
+    @classmethod
+    def _validate(cls, v: AstropyQty):
+        v.to("s-1 K(-1/2) m3")
+        return v
+
+    def simplify(
+        self
+    ) -> "CERate":
+        temperature = self.temperature.to(u.K)
+        data = self.data.to("s-1 K(-1/2) m3")
+        return CERate(
+            type="CE",
+            temperature=temperature,
+            data=data
+        )
+
+class CPRate(TemperatureInterpolationRate, type_name="CP"):
+    """
+    Collisional excitation by protons.
+    Units of s-1 m3
+
+    Scales with proton density
+    """
+    type: Literal["CP"]
+
+    @field_validator("data")
+    @classmethod
+    def _validate(cls, v: AstropyQty):
+        v.to("m3 / s")
+        return v
+
+    def simplify(
+        self
+    ) -> "CPRate":
+        temperature = self.temperature.to(u.K)
+        data = self.data.to("m3 / s")
+        return CPRate(
+            type="CP",
+            temperature=temperature,
+            data=data
+        )
+
+class CHRate(TemperatureInterpolationRate, type_name="CH"):
+    """
+    Collisional excitation by neutral hydrogen.
+    Units of s-1 m3
+
+    Scales with neutral H density
+    """
+    type: Literal["CH"]
+
+    @field_validator("data")
+    @classmethod
+    def _validate(cls, v: AstropyQty):
+        v.to("m3 / s")
+        return v
+
+    def simplify(
+        self
+    ) -> "CHRate":
+        temperature = self.temperature.to(u.K)
+        data = self.data.to("m3 / s")
+        return CHRate(
+            type="CH",
+            temperature=temperature,
+            data=data
+        )
+
+class ChargeExcHRate(TemperatureInterpolationRate, type_name="ChargeExcH"):
+    """
+    Charge exchange with neutral H. Downward rate only.
+    Units of s-1 m3
+
+    Scales with neutral H density
+    """
+    type: Literal["ChargeExcH"]
+
+    @field_validator("data")
+    @classmethod
+    def _validate(cls, v: AstropyQty):
+        v.to("m3 / s")
+        return v
+
+    def simplify(
+        self
+    ) -> "ChargeExcHRate":
+        temperature = self.temperature.to(u.K)
+        data = self.data.to("m3 / s")
+        return ChargeExcHRate(
+            type="ChargeExcH",
+            temperature=temperature,
+            data=data
+        )
+
+class ChargeExcPRate(TemperatureInterpolationRate, type_name="ChargeExcP"):
+    """
+    Charge exchange with protons. Upward rate only.
+    Units of s-1 m3
+
+    Scales with proton density
+    """
+    type: Literal["ChargeExcP"]
+
+    @field_validator("data")
+    @classmethod
+    def _validate(cls, v: AstropyQty):
+        v.to("m3 / s")
+        return v
+
+    def simplify(
+        self
+    ) -> "ChargeExcPRate":
+        temperature = self.temperature.to(u.K)
+        data = self.data.to("m3 / s")
+        return ChargeExcPRate(
+            type="ChargeExcP",
+            temperature=temperature,
+            data=data
+        )
+
 
 class TransCollisionalRates(BaseModel):
+    """
+    Container for all the rates affecting a given transition.
+    """
     transition: List[str]
     data: List[SerializeAsAny[CollisionalRate]]
 

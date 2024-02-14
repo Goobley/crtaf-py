@@ -4,9 +4,9 @@ import astropy.constants as const
 import astropy.units as u
 import lightweaver as lw
 import numpy as np
-from crtaf.core_types import Atom, AtomicBoundBound, AtomicLevel, HydrogenicBoundFree, LinearGrid, NaturalBroadening, ScaledExponents, StarkLinearSutton, StarkQuadratic, TabulatedBoundFree, TabulatedGrid, TransCollisionalRates, VdWUnsold, VoigtBoundBound
+from crtaf.core_types import Atom, AtomicBoundBound, AtomicLevel, HydrogenicBoundFree, LinearGrid, NaturalBroadening, ScaledExponents, StarkLinearSutton, StarkMultiplicative, StarkQuadratic, TabulatedBoundFree, TabulatedGrid, TemperatureInterpolationRateImpl, TransCollisionalRates, VdWUnsold, VoigtBoundBound
 
-from crtaf.physics_utils import EinsteinCoeffs, constant_stark_linear_sutton, constant_stark_quadratic, n_eff
+from crtaf.physics_utils import EinsteinCoeffs, constant_stark_linear_sutton, constant_stark_quadratic, constant_unsold, n_eff
 
 def simplify_atomic_level(level: AtomicLevel, *args, **kwargs):
     return level.simplify()
@@ -25,8 +25,8 @@ def simplify_stark_linear(
     line = roots[-1]
 
     if b.n_upper is None or b.n_lower is None:
-        g_upper = atom.levels[line.transition[0]]
-        g_lower = atom.levels[line.transition[1]]
+        g_upper = atom.levels[line.transition[0]].g
+        g_lower = atom.levels[line.transition[1]].g
         n_upper = int(np.round(np.sqrt(0.5 * g_upper)))
         n_lower = int(np.round(np.sqrt(0.5 * g_lower)))
     else:
@@ -36,12 +36,20 @@ def simplify_stark_linear(
     c = constant_stark_linear_sutton(n_upper, n_lower)
     return ScaledExponents(
         type="Scaled_Exponents",
-        scaling=c,
+        scaling=c.to(u.m**3 / u.s, equivalencies=u.dimensionless_angles()).value,
         temperature_exponent=0.0,
         hydrogen_exponent=0.0,
         electron_exponent=2 / 3,
     )
 
+def get_overlying_continuum(atom: Atom, level: AtomicLevel):
+    """
+    Returns the level name and level with the lowest energy at the next ionisation stage.
+    """
+    stage = level.stage
+    next_stage_energies = [(name, l.energy) for name, l in atom.levels.items() if l.stage == stage + 1]
+    overlying_cont_name = min(next_stage_energies, key=lambda x: x[1])[0]
+    return overlying_cont_name, atom.levels[overlying_cont_name]
 
 def simplify_stark_quadratic(
     b: StarkQuadratic, roots: Optional[List[Any]], *args, **kwargs
@@ -54,34 +62,40 @@ def simplify_stark_quadratic(
     e_j = atom.levels[line.transition[0]].energy
     e_i = atom.levels[line.transition[1]].energy
     stage = atom.levels[line.transition[0]].stage
-    next_stage_energies = [l.energy for l in atom.levels if l.stage == stage + 1]
-    overlying_cont_energy = min(next_stage_energies)
+    _, overlying_cont = get_overlying_continuum(atom, atom.levels[line.transition[1]])
+    overlying_cont_energy = overlying_cont.energy
 
-    if b.C_4 is None:
-        if atom.element.atomic_mass is not None:
-            mass = atom.element.atomic_mass << u.u
-        else:
-            mass = lw.PeriodicTable[atom.element.symbol].mass << u.u
-        cst = constant_stark_quadratic(
-            e_j,
-            e_i,
-            overlying_cont_energy,
-            stage,
-            mass,
-            b.scaling,
-        )
+    if atom.element.atomic_mass is not None:
+        mass = atom.element.atomic_mass << u.u
     else:
-        cst = b.C_4
-        temperature_exponent = 0.0
+        mass = lw.PeriodicTable[atom.element.symbol].mass << u.u
+    cst = constant_stark_quadratic(
+        e_j,
+        e_i,
+        overlying_cont_energy,
+        stage,
+        mass,
+        scaling=b.scaling,
+    )
 
     return ScaledExponents(
         type="Scaled_Exponents",
-        scaling=b.scaling * cst,
-        temperature_exponent=temperature_exponent,
+        scaling=b.scaling * cst.to(u.m**3 / u.s, equivalencies=u.dimensionless_angles()).value,
+        temperature_exponent=(1.0 / 6.0),
         hydrogen_exponent=0.0,
         electron_exponent=1.0,
     )
 
+def simplify_stark_multiplicative(
+    b: StarkMultiplicative, *args, **kwargs
+):
+    return ScaledExponents(
+        type="Scaled_Exponents",
+        scaling=b.scaling * b.C_4.to(u.m**3 / u.s).value,
+        temperature_exponent=0.0,
+        hydrogen_exponent=0.0,
+        electron_exponent=1.0,
+    )
 
 def simplify_vdw_unsold(b: VdWUnsold, roots: Optional[List[Any]], *args, **kwargs):
     if roots is None:
@@ -93,38 +107,17 @@ def simplify_vdw_unsold(b: VdWUnsold, roots: Optional[List[Any]], *args, **kwarg
     if mass is None:
         mass = lw.PeriodicTable[atom.element.symbol].mass
 
-    Z = atom.levels[line.transition[0]].stage + 1
+    stage = atom.levels[line.transition[0]].stage
     e_j = atom.levels[line.transition[0]].energy
     e_i = atom.levels[line.transition[1]].energy
-    cont = min([l for l in atom.levels if l.stage == Z], key=lambda x: x.energy)
-    e_cont = cont.energy
-    abar_h = 4.5 * 4.0 * np.pi * const.eps0 * const.a0**3  # polarizability of H [Fm^2]
+    _, overlying_cont = get_overlying_continuum(atom, atom.levels[line.transition[1]])
+    e_cont = overlying_cont.energy
 
-
-    ryd = const.Ryd.to(u.J, equivalencies=u.spectral())
-    deltaR = ((ryd / (e_cont - e_j)) ** 2 - (ryd / (e_cont - e_i)) ** 2).to(u.J / u.J)
-    inv_4pieps0 = 1.0 / (4.0 * np.pi * const.eps0)
-    C6 = (
-        2.5
-        * const.e.si**2
-        * inv_4pieps0
-        * abar_h
-        * inv_4pieps0
-        * 2.0
-        * np.pi
-        * (Z * const.a0) ** 2
-        / const.h
-        * deltaR
-    ) ** 0.4
-
-    v_rel_const = 8.0 * const.k_B / np.pi * const.u
-    v_rel_h = v_rel_const * (1.0 + mass / lw.PeriodicTable['H'].mass)
-    v_rel_he = v_rel_const * (1.0 + mass / lw.PeriodicTable['He'].mass)
-    coeff = 8.08 * (b.H_scaling * v_rel_h**0.3 + b.He_scaling * v_rel_he**0.3) * C6
+    coeff = constant_unsold(e_j, e_i, e_cont, stage, mass << u.u, b.H_scaling, b.He_scaling)
 
     return ScaledExponents(
         type="Scaled_Exponents",
-        scaling=coeff,
+        scaling=coeff.value,
         temperature_exponent=0.3,
         hydrogen_exponent=1.0,
         electron_exponent=0.0,
@@ -177,8 +170,21 @@ def simplify_hydrogenic_cont(c: HydrogenicBoundFree, *args, **kwargs):
 def simplify_tabulated_cont(c: TabulatedBoundFree, *args, **kwargs):
     return c.simplify()
 
-def simplify_trans_coll_rate(c: TransCollisionalRates, *args, **kwargs):
-    return c.simplify()
+def simplify_temperature_interp_rate(r: TemperatureInterpolationRateImpl, *args, **kwargs):
+    return r.simplify()
+
+def simplify_trans_coll_rate(r: TransCollisionalRates, roots: Optional[List[Any]], visitor, *args, **kwargs):
+    if roots is None:
+        roots = [r]
+    else:
+        roots = roots + [r]
+
+    simplified_rates = [visitor.visit(rate) for rate in r.data]
+    return TransCollisionalRates(
+        transition=r.transition,
+        data=simplified_rates,
+    )
+
 
 def default_visitors():
     visitors = {
@@ -186,6 +192,7 @@ def default_visitors():
         NaturalBroadening: simplify_natural_broadening,
         StarkLinearSutton: simplify_stark_linear,
         StarkQuadratic: simplify_stark_quadratic,
+        StarkMultiplicative: simplify_stark_multiplicative,
         VdWUnsold: simplify_vdw_unsold,
         ScaledExponents: simplify_scaled_exponents,
         LinearGrid: simplify_linear_grid,
@@ -193,6 +200,7 @@ def default_visitors():
         VoigtBoundBound: simplify_voigt_line,
         HydrogenicBoundFree: simplify_hydrogenic_cont,
         TabulatedBoundFree: simplify_tabulated_cont,
+        TemperatureInterpolationRateImpl: simplify_temperature_interp_rate,
         TransCollisionalRates: simplify_trans_coll_rate,
     }
     return visitors
