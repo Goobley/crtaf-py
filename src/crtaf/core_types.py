@@ -19,7 +19,11 @@ import pydantic_core.core_schema as core_schema
 from pydantic_numpy import NpNDArrayFp64
 import astropy.units as u
 
-from crtaf.physics_utils import n_eff
+# TODO #
+########
+# - Multiplicative Stark
+# - VdwBarklem
+# - More tests
 
 
 class IterateQuantitiesMixin:
@@ -79,7 +83,7 @@ class AtomicSimplificationVisitor:
                 if cls in self.visitors:
                     visit_fn = self.visitors[cls]
                     break
-            
+
         if visit_fn is None:
             if accept_failure:
                 result = obj
@@ -679,6 +683,7 @@ class TransCollisionalRates(BaseModel):
 
 class Atom(BaseModel):
     meta: Metadata
+    element: Element
     levels: Dict[str, SerializeAsAny[AtomicLevel]]
     radiative_bound_bound: List[SerializeAsAny[AtomicBoundBound]]
     radiative_bound_free: List[SerializeAsAny[AtomicBoundFree]]
@@ -724,6 +729,7 @@ class Atom(BaseModel):
         # TODO(cmo): Update meta.
         return Atom(
             meta=self.meta,
+            element=self.element,
             levels=levels,
             radiative_bound_bound=lines,
             radiative_bound_free=cont,

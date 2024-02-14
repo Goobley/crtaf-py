@@ -6,7 +6,7 @@ import lightweaver as lw
 import numpy as np
 from crtaf.core_types import Atom, AtomicBoundBound, AtomicLevel, HydrogenicBoundFree, LinearGrid, NaturalBroadening, ScaledExponents, StarkLinearSutton, StarkQuadratic, TabulatedBoundFree, TabulatedGrid, TransCollisionalRates, VdWUnsold, VoigtBoundBound
 
-from crtaf.physics_utils import EinsteinCoeffs, n_eff
+from crtaf.physics_utils import EinsteinCoeffs, constant_stark_linear_sutton, constant_stark_quadratic, n_eff
 
 def simplify_atomic_level(level: AtomicLevel, *args, **kwargs):
     return level.simplify()
@@ -33,22 +33,10 @@ def simplify_stark_linear(
         n_upper = b.n_upper
         n_lower = b.n_lower
 
-    # NOTE(cmo): Different implementation to Lightweaver, which may be
-    # missing 2pi term. Based on Tiago's work/RH1.5d. Appears correct as per
-    # Sutton paper.
-    a1 = 0.642 if n_upper - n_lower == 1 else 1.0
-    C = (
-        4.0
-        * np.pi
-        * 0.425
-        * a1
-        * 0.6e-4
-        * (n_upper**2 - n_lower**2)
-        * (u.m**3 * u.rad / u.s)
-    )
+    c = constant_stark_linear_sutton(n_upper, n_lower)
     return ScaledExponents(
         type="Scaled_Exponents",
-        scaling=C,
+        scaling=c,
         temperature_exponent=0.0,
         hydrogen_exponent=0.0,
         electron_exponent=2 / 3,
@@ -70,31 +58,25 @@ def simplify_stark_quadratic(
     overlying_cont_energy = min(next_stage_energies)
 
     if b.C_4 is None:
-        n_eff_u = n_eff(overlying_cont_energy, e_j, stage)
-        n_eff_l = n_eff(overlying_cont_energy, e_i, stage)
-        Z = stage
-
-        C4 = (
-            const.e.si**2
-            / (4.0 * np.pi * const.eps0)
-            * const.a_0**3
-            * 2.0
-            * np.pi
-            / (const.h * 18 * Z**4)
-            * (
-                (n_eff_u * (5.0 * n_eff_u**2 + 1.0)) ** 2
-                - (n_eff_l * (5.0 * n_eff_l**2 + 1.0)) ** 2
-            )
+        if atom.element.atomic_mass is not None:
+            mass = atom.element.atomic_mass << u.u
+        else:
+            mass = lw.PeriodicTable[atom.element.symbol].mass << u.u
+        cst = constant_stark_quadratic(
+            e_j,
+            e_i,
+            overlying_cont_energy,
+            stage,
+            mass,
+            b.scaling,
         )
-        C4 <<= u.m**4 / u.s
-        temperature_exponent = 1.0 / 6.0
     else:
-        C4 = b.C_4
+        cst = b.C_4
         temperature_exponent = 0.0
 
     return ScaledExponents(
         type="Scaled_Exponents",
-        scaling=b.scaling * C4,
+        scaling=b.scaling * cst,
         temperature_exponent=temperature_exponent,
         hydrogen_exponent=0.0,
         electron_exponent=1.0,
