@@ -19,10 +19,6 @@ import pydantic_core.core_schema as core_schema
 from pydantic_numpy import NpNDArrayFp64
 import astropy.units as u
 
-# TODO #
-########
-# - More tests
-
 
 class IterateQuantitiesMixin:
     """Simple mixin to allow for keeping track of all Quantities on a type and
@@ -94,8 +90,15 @@ class AtomicSimplificationVisitor:
             self.extensions_encountered.add(result._crtaf_ext_name)
         return result
 
+class CrtafBaseModel(BaseModel):
+    """
+    Class used to override default behaviour on model_dump only.
+    """
 
-class PolymorphicBaseModel(BaseModel):
+    def model_dump(self, *args, exclude_none: bool=True, **kwargs):
+        return super().model_dump(*args, exclude_none=exclude_none, **kwargs)
+
+class PolymorphicBaseModel(CrtafBaseModel):
     _is_polymorphic_base: ClassVar = True
     _registry: ClassVar = {}
 
@@ -139,7 +142,7 @@ class PolymorphicBaseModel(BaseModel):
         return cls._registry[t].model_validate(v)
 
 
-class DimensionalQuantity(BaseModel):
+class DimensionalQuantity(CrtafBaseModel):
     unit: str
     value: Union[float, NpNDArrayFp64]
 
@@ -164,6 +167,8 @@ class _AstropyQtyAnnotation:
             value = qty.value
             if len(value.shape) > 0:
                 value = value.tolist()
+            else:
+                value = float(value)
             unit = qty.unit
             return {
                 "unit": unit.to_string(),
@@ -194,21 +199,16 @@ class _AstropyQtyAnnotation:
 AstropyQty = Annotated[u.Quantity, _AstropyQtyAnnotation]
 
 
-class FileLevel(Enum):
-    HighLevel = "high-level"
-    Simplified = "simplified"
-
-
-class Metadata(BaseModel):
+class Metadata(CrtafBaseModel):
     version: Annotated[
         str, StringConstraints(strip_whitespace=True, pattern=r"^v\d+\.\d+(\.\d+)*")
     ]
-    level: FileLevel
+    level: Union[Literal["high-level"], Literal["simplified"]]
     extensions: List[str]
-    notes: Optional[str] = None
+    notes: str = ""
 
 
-class Element(BaseModel):
+class Element(CrtafBaseModel):
     symbol: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
     atomic_mass: Optional[Annotated[float, Gt(0)]] = None
     abundance: Optional[Annotated[float, Le(12.0)]] = None
@@ -216,12 +216,12 @@ class Element(BaseModel):
     N: Optional[int] = None
 
 
-class Fraction(BaseModel):
+class Fraction(CrtafBaseModel):
     numerator: int
     denominator: int
 
 
-class AtomicLevel(BaseModel, IterateQuantitiesMixin, SimplifyAtomicStructureMixin):
+class AtomicLevel(CrtafBaseModel, IterateQuantitiesMixin, SimplifyAtomicStructureMixin):
     energy: AstropyQty
     g: int
     stage: int
@@ -838,7 +838,7 @@ class ChargeExcPRate(TemperatureInterpolationRate, type_name="ChargeExcP"):
         )
 
 
-class TransCollisionalRates(BaseModel):
+class TransCollisionalRates(CrtafBaseModel):
     """
     Container for all the rates affecting a given transition.
     """
@@ -864,7 +864,7 @@ class TransCollisionalRates(BaseModel):
         )
 
 
-class Atom(BaseModel):
+class Atom(CrtafBaseModel):
     meta: Metadata
     element: Element
     levels: Dict[str, SerializeAsAny[AtomicLevel]]

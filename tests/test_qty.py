@@ -43,3 +43,5 @@ def test_single_premade_item():
     t = QtyTest.model_validate(data)
     assert t.data.value.item() == 0.314
     assert t.data.unit == 1.0 / u.m
+    dump = t.model_dump()
+    assert isinstance(dump["data"]["value"], float)
