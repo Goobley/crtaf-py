@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0", "setuptools-scm"]
+requires = ["setuptools >= 64.0", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,11 +16,19 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
-    "pyyaml",
+    "ruamel.yaml",
     "pydantic",
     "pydantic_numpy",
+    "lightweaver",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = [
+    "pytest",
+    "pytest-cov",
+    "coverage",
+]
+
+[tool.setuptools_scm]
+version_file = "src/crtaf/version.py"
