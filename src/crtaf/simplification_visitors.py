@@ -22,9 +22,11 @@ from crtaf.core_types import (
     VdWUnsold,
     VoigtBoundBound,
 )
+from crtaf.exts.linear_core_exp_wings_grid import LinearCoreExpWings, simplify_linear_core_exp_wings
 
 from crtaf.physics_utils import (
     EinsteinCoeffs,
+    compute_lambda0,
     constant_stark_linear_sutton,
     constant_stark_quadratic,
     constant_unsold,
@@ -184,10 +186,7 @@ def simplify_voigt_line(
     broadening = [visitor.visit(b, roots=new_roots) for b in l.broadening]
     wavelength_grid = visitor.visit(l.wavelength_grid, roots=new_roots)
 
-    delta_E = (atom.levels[trans[0]].energy - atom.levels[trans[1]].energy).to(
-        u.J, equivalencies=u.spectral()
-    )
-    lambda0 = ((const.h * const.c) / (delta_E)).to(u.nm)
+    lambda0 = compute_lambda0(atom, l)
     lambda0_m = lambda0.to(u.m)
     g_ratio = atom.levels[trans[0]].g / atom.levels[trans[1]].g
 
@@ -253,5 +252,8 @@ def default_visitors():
         TabulatedBoundFree: simplify_tabulated_cont,
         TemperatureInterpolationRateImpl: simplify_temperature_interp_rate,
         TransCollisionalRates: simplify_trans_coll_rate,
+
+        # core exts
+        LinearCoreExpWings: simplify_linear_core_exp_wings,
     }
     return visitors

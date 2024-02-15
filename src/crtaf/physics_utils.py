@@ -6,6 +6,8 @@ import lightweaver as lw
 import numpy as np
 from lightweaver.barklem import Barklem
 
+from crtaf.core_types import Atom, AtomicBoundBound
+
 
 def n_eff(
     e_upper: u.Quantity[u.J],
@@ -38,6 +40,24 @@ def n_eff(
     e_u = e_upper.to(u.J)
     e_l = e_lower.to(u.J)
     return Z * np.sqrt((ry_h / (e_u - e_l)).to(u.J / u.J))
+
+def compute_lambda0(atom: Atom, line: AtomicBoundBound):
+    """
+    Calculate the rest wavelength of a transition in nm (as a Quantity).
+
+    Parameters
+    ----------
+    atom :  Atom
+        The model to source the level data from
+    line :  AtomicBoundBound
+        The specified transition on atom.
+    """
+    trans = line.transition
+    delta_E = (atom.levels[trans[0]].energy - atom.levels[trans[1]].energy).to(
+        u.J, equivalencies=u.spectral()
+    )
+    lambda0 = ((const.h * const.c) / (delta_E)).to(u.nm)
+    return lambda0
 
 
 def Aji(lambda0, g_ij, f_value):

@@ -39,6 +39,7 @@ from .core_types import (
 from .physics_utils import (
     n_eff,
     EinsteinCoeffs,
+    compute_lambda0,
     constant_stark_linear_sutton,
     constant_stark_quadratic,
     c4_traving,
@@ -47,3 +48,5 @@ from .physics_utils import (
 
 from .simplification_visitors import default_visitors
 from .version import version as __version__
+
+from .exts.linear_core_exp_wings_grid import LinearCoreExpWings, simplify_linear_core_exp_wings
