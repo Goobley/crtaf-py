@@ -962,7 +962,7 @@ class TransCollisionalRates(CrtafBaseModel):
 
 
 class Atom(CrtafBaseModel):
-    meta: Metadata
+    crtaf_meta: Metadata
     element: Element
     levels: Dict[str, SerializeAsAny[AtomicLevel]]
     radiative_bound_bound: List[SerializeAsAny[AtomicBoundBound]]
@@ -1010,7 +1010,7 @@ class Atom(CrtafBaseModel):
         coll = [visitor.visit(v, roots=root) for v in self.collisional_rates]
         # TODO(cmo): Update meta.
         return Atom(
-            meta=self.meta,
+            crtaf_meta=self.crtaf_meta,
             element=self.element,
             levels=levels,
             radiative_bound_bound=lines,

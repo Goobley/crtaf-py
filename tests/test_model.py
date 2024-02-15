@@ -8,7 +8,7 @@ import astropy.units as u
 from crtaf.simplification_visitors import default_visitors
 
 Data = {
-    "meta": {
+    "crtaf_meta": {
         "version": "v0.1.0",
         "level": "high-level",
         "extensions": [],

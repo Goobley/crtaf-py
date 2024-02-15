@@ -13,7 +13,7 @@ import astropy.units as u
 import numpy as np
 
 Data = {
-    "meta": {
+    "crtaf_meta": {
         "version": "v0.1.0",
         "level": "high-level",
         "extensions": [],
@@ -146,7 +146,7 @@ Data = {
         },
     ],
 }
-high_level_yaml = r"""meta:
+high_level_yaml = r"""crtaf_meta:
   version: v0.1.0
   level: high-level
   extensions: []
@@ -266,7 +266,7 @@ collisional_rates:
       value: [50.0, 70.0]
 """
 
-low_level_yaml = r"""meta:
+low_level_yaml = r"""crtaf_meta:
   version: v0.1.0
   level: high-level
   extensions: []
