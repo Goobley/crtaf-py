@@ -1,7 +1,8 @@
-from enum import Enum
+from copy import copy
+from io import StringIO
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Union
 from typing_extensions import Annotated
-from annotated_types import Ge, Gt, Le
+from annotated_types import Gt, Le
 import numpy as np
 from pydantic import (
     BaseModel,
@@ -18,6 +19,9 @@ from pydantic.config import ConfigDict
 import pydantic_core.core_schema as core_schema
 from pydantic_numpy import NpNDArrayFp64
 import astropy.units as u
+import ruamel.yaml
+from ruamel.yaml import CommentedMap, CommentedSeq
+from ruamel.yaml.comments import CommentedBase
 
 
 class IterateQuantitiesMixin:
@@ -92,11 +96,102 @@ class AtomicSimplificationVisitor:
 
 class CrtafBaseModel(BaseModel):
     """
-    Class used to override default behaviour on model_dump only.
+    Class used to override default behaviour on model_dump, and add yaml functions to
+    allow for formatting control and simplify converting to string.
     """
 
     def model_dump(self, *args, exclude_none: bool=True, **kwargs):
         return super().model_dump(*args, exclude_none=exclude_none, **kwargs)
+
+    @staticmethod
+    def _convert_element(v: Any):
+        if isinstance(v, dict):
+            return CrtafBaseModel._recursive_dict_convert(v)
+
+        if isinstance(v, list):
+            return CrtafBaseModel._recursive_list_convert(v)
+
+        return v
+
+    @staticmethod
+    def _recursive_dict_convert(d: Dict[str, Any]) -> CommentedMap:
+        result = CommentedMap()
+        for k, v in d.items():
+            result[k] = CrtafBaseModel._convert_element(v)
+        return result
+
+    @staticmethod
+    def _recursive_list_convert(l: List[Any]) -> CommentedSeq:
+        result = CommentedSeq()
+        for v in l:
+            result.append(CrtafBaseModel._convert_element(v))
+        return result
+
+    @staticmethod
+    def _recursive_list_format(attr: List[Any], serialised: CommentedSeq) -> CommentedSeq:
+        result = CommentedSeq()
+        for i, f in enumerate(attr):
+            if isinstance(f, CrtafBaseModel):
+                if not isinstance(serialised[i], (dict, CommentedMap)):
+                    raise ValueError(f"model_dump failed to serialise to dict, got {type(serialised[i])!r}.")
+                result.append(CrtafBaseModel._recursive_yaml_format(f, serialised[i]))
+            elif isinstance(f, list):
+                result.append(CrtafBaseModel._recursive_list_format(f, serialised[i]))
+            else:
+                result.append(serialised[i])
+        return result
+
+    def _recursive_yaml_format(self, d: Union[dict, CommentedMap]) -> CommentedMap:
+        """
+        Recurses through the YAML tree and formatting the CommentedMap and
+        CommentedSeq as prescribed by `format_yaml_dict`.
+        """
+        if isinstance(d, CommentedBase):
+            d = copy(d)
+        else:
+            d = self._recursive_dict_convert(copy(d))
+
+        for k, v in d.items():
+            if hasattr(self, k):
+                attr = getattr(self, k)
+                if isinstance(attr, CrtafBaseModel):
+                    if not isinstance(v, dict):
+                        raise ValueError(f"The result of model_dump from a BaseModel should be a dict, got {type(attr)!r}")
+                    dd = attr._recursive_yaml_format(d[k])
+                    d[k] = dd
+                elif isinstance(attr, list):
+                    d[k] = self._recursive_list_format(attr, d[k])
+        return self.format_yaml_dict(d)
+
+    def yaml_dict(self, *args, **kwargs) -> CommentedMap:
+        """CommentedMap (dict with formatting), set up for pretty-printing via
+        ruamel.yaml. Effectively the same as calling `model_dump` but with this
+        extra formatting."""
+        model = self.model_dump(*args, **kwargs)
+        result = self._recursive_yaml_format(model)
+        return result
+
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        """Modify the formatting of a yaml_dict to get a tidy representation.
+        Modifies c in place but also returns it. Base implementation leaves as is."""
+
+        return c
+
+    def yaml_dumps(self, *args, **kwargs) -> str:
+        """YAML string representation of the model."""
+        stream = StringIO()
+        yaml = ruamel.yaml.YAML(typ='rt')
+        data = self.yaml_dict()
+        yaml.dump(data, stream)
+        return stream.getvalue()
+
+    @classmethod
+    def yaml_loads(cls, inp: str):
+        """Construct from YAML string representation."""
+        yaml = ruamel.yaml.YAML(typ='rt')
+        data = yaml.load(inp)
+        return cls.model_validate(data)
+
 
 class PolymorphicBaseModel(CrtafBaseModel):
     _is_polymorphic_base: ClassVar = True
@@ -282,6 +377,10 @@ class SimplifiedAtomicLevel(AtomicLevel):
         self.energy_eV = self.energy_eV.to(u.eV, equivalencies=u.spectral())
         return self
 
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        c.fa.set_flow_style()
+        return c
+
 
 class LineBroadening(
     PolymorphicBaseModel,
@@ -290,15 +389,21 @@ class LineBroadening(
     is_polymorphic_base=True,
 ):
     type: str
+    elastic: Optional[bool] = True
 
     def simplify(
         self
     ) -> "LineBroadening":
         return super().simplify()
 
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        c.fa.set_flow_style()
+        return c
+
 
 class NaturalBroadening(LineBroadening, type_name="Natural"):
     type: Literal["Natural"]
+    elastic: Optional[bool] = False
     value: AstropyQty
 
     @field_validator("value")
@@ -313,8 +418,10 @@ class NaturalBroadening(LineBroadening, type_name="Natural"):
         new_value = self.value.to(u.s**-1)
         return NaturalBroadening(type=self.type, value=new_value)
 
+class ElasticBroadening(LineBroadening, type_name="__elastic"):
+    elastic: Optional[bool] = True
 
-class StarkLinearSutton(LineBroadening, type_name="Stark_Linear_Sutton"):
+class StarkLinearSutton(ElasticBroadening, type_name="Stark_Linear_Sutton"):
     type: Literal["Stark_Linear_Sutton"]
     n_upper: Optional[Annotated[int, Gt(0)]] = None
     n_lower: Optional[Annotated[int, Gt(0)]] = None
@@ -338,7 +445,7 @@ class StarkLinearSutton(LineBroadening, type_name="Stark_Linear_Sutton"):
     ):
         raise NotImplementedError()
 
-class StarkQuadratic(LineBroadening, type_name="Stark_Quadratic"):
+class StarkQuadratic(ElasticBroadening, type_name="Stark_Quadratic"):
     type: Literal["Stark_Quadratic"]
     scaling: Optional[float] = 1.0
 
@@ -347,7 +454,7 @@ class StarkQuadratic(LineBroadening, type_name="Stark_Quadratic"):
     ):
         raise NotImplementedError()
 
-class StarkMultiplicative(LineBroadening, type_name="Stark_Multiplicative"):
+class StarkMultiplicative(ElasticBroadening, type_name="Stark_Multiplicative"):
     type: Literal["Stark_Multiplicative"]
     C_4: AstropyQty
     scaling: Optional[float] = 1.0
@@ -362,7 +469,7 @@ class StarkMultiplicative(LineBroadening, type_name="Stark_Multiplicative"):
         return value
 
 
-class VdWUnsold(LineBroadening, type_name="VdW_Unsold"):
+class VdWUnsold(ElasticBroadening, type_name="VdW_Unsold"):
     """
     Van der Waals collisional broadening following Unsold.
     See:
@@ -382,6 +489,7 @@ class VdWUnsold(LineBroadening, type_name="VdW_Unsold"):
 
 class ScaledExponents(LineBroadening, type_name="Scaled_Exponents"):
     type: Literal["Scaled_Exponents"]
+    elastic: bool = True
     scaling: float
     temperature_exponent: float
     hydrogen_exponent: float
@@ -448,6 +556,10 @@ class TabulatedGrid(WavelengthGrid, type_name="Tabulated"):
         wavelengths = self.wavelengths.to(u.nm)
         return TabulatedGrid(type=self.type, wavelengths=wavelengths)
 
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        c['wavelengths'].fa.set_flow_style()
+        return c
+
 
 class AtomicBoundBoundImpl(
     PolymorphicBaseModel,
@@ -480,6 +592,10 @@ class VoigtBoundBound(AtomicBoundBound, type_name="Voigt"):
     Bij: Optional[AstropyQty] = None
     Bij_wavelength: Optional[AstropyQty] = None
     lambda0: Optional[AstropyQty] = None
+
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        c['transition'].fa.set_flow_style()
+        return c
 
 
 class PrdVoigtBoundBound(VoigtBoundBound, type_name="PRD-Voigt"):
@@ -530,6 +646,10 @@ class HydrogenicBoundFree(AtomicBoundFree, type_name="Hydrogenic"):
             lambda_min=lambda_min,
             n_lambda=self.n_lambda,
         )
+
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        c['transition'].fa.set_flow_style()
+        return c
 
 
 class TabulatedBoundFreeIntermediate(BaseModel):
@@ -621,6 +741,12 @@ class TabulatedBoundFree(AtomicBoundFree, type_name="Tabulated"):
             sigma=sigma,
         )
 
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        c['transition'].fa.set_flow_style()
+        for l in c['value']:
+            l.fa.set_flow_style()
+        return c
+
 class CollisionalRateImpl(
     PolymorphicBaseModel,
     IterateQuantitiesMixin,
@@ -657,6 +783,11 @@ class TemperatureInterpolationRateImpl(
         self
     ) -> "TemperatureInterpolationRateImpl":
         return super().simplify()
+
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        c['temperature']['value'].fa.set_flow_style()
+        c['data']['value'].fa.set_flow_style()
+        return c
 
 
 TemperatureInterpolationRate = SerializeAsAny[TemperatureInterpolationRateImpl]
@@ -856,12 +987,15 @@ class TransCollisionalRates(CrtafBaseModel):
     def simplify(
         self
     ):
-        # TODO(cmo): Move this into the visitor so the individual extensions can get registered/overridden.
         data = [d.simplify() for d in self.data]
         return TransCollisionalRates(
             transition=self.transition,
             data=data,
         )
+
+    def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
+        c['transition'].fa.set_flow_style()
+        return c
 
 
 class Atom(CrtafBaseModel):

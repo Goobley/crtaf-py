@@ -36,6 +36,7 @@ def simplify_stark_linear(
     c = constant_stark_linear_sutton(n_upper, n_lower)
     return ScaledExponents(
         type="Scaled_Exponents",
+        elastic=b.elastic,
         scaling=c.to(u.m**3 / u.s, equivalencies=u.dimensionless_angles()).value,
         temperature_exponent=0.0,
         hydrogen_exponent=0.0,
@@ -80,6 +81,7 @@ def simplify_stark_quadratic(
 
     return ScaledExponents(
         type="Scaled_Exponents",
+        elastic=b.elastic,
         scaling=b.scaling * cst.to(u.m**3 / u.s, equivalencies=u.dimensionless_angles()).value,
         temperature_exponent=(1.0 / 6.0),
         hydrogen_exponent=0.0,
@@ -91,6 +93,7 @@ def simplify_stark_multiplicative(
 ):
     return ScaledExponents(
         type="Scaled_Exponents",
+        elastic=b.elastic,
         scaling=b.scaling * b.C_4.to(u.m**3 / u.s).value,
         temperature_exponent=0.0,
         hydrogen_exponent=0.0,
@@ -117,6 +120,7 @@ def simplify_vdw_unsold(b: VdWUnsold, roots: Optional[List[Any]], *args, **kwarg
 
     return ScaledExponents(
         type="Scaled_Exponents",
+        elastic=b.elastic,
         scaling=coeff.value,
         temperature_exponent=0.3,
         hydrogen_exponent=1.0,
