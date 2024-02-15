@@ -3,6 +3,7 @@ from crtaf.core_types import ChargeExcPRate, CollisionalRate, OmegaRate
 import pytest
 import astropy.units as u
 
+
 def test_normal():
     rate_dict = {
         "type": "Omega",
@@ -13,7 +14,7 @@ def test_normal():
         "data": {
             "unit": "m/m",
             "value": [4, 3, 2, 1],
-        }
+        },
     }
 
     rate = CollisionalRate.model_validate(rate_dict)
@@ -22,6 +23,7 @@ def test_normal():
     assert isinstance(round_trip, OmegaRate)
     from_instance = CollisionalRate.model_validate(round_trip)
     assert isinstance(from_instance, OmegaRate)
+
 
 def test_missing_data():
     rate_dict = {
@@ -35,6 +37,7 @@ def test_missing_data():
     with pytest.raises(pydantic.ValidationError):
         rate = CollisionalRate.model_validate(rate_dict)
 
+
 def test_different_lengths():
     rate_dict = {
         "type": "Omega",
@@ -45,11 +48,12 @@ def test_different_lengths():
         "data": {
             "unit": "m/m",
             "value": [4, 3, 2, 1, 0],
-        }
+        },
     }
 
     with pytest.raises(pydantic.ValidationError):
         rate = CollisionalRate.model_validate(rate_dict)
+
 
 def test_CE():
     rate_dict = {
@@ -61,12 +65,13 @@ def test_CE():
         "data": {
             "unit": "cm3 / (s K(1/2))",
             "value": [1, 2, 3, 4],
-        }
+        },
     }
     rate = CollisionalRate.model_validate(rate_dict)
     assert rate.type == "CE"
     r2 = rate.simplify()
     assert r2.data.unit == u.Unit("m3 / (s K(1/2))")
+
 
 def test_CI():
     rate_dict = {
@@ -78,12 +83,13 @@ def test_CI():
         "data": {
             "unit": "m3 / (h K(1/2))",
             "value": [1, 2, 3, 4],
-        }
+        },
     }
     rate = CollisionalRate.model_validate(rate_dict)
     assert rate.type == "CI"
     r2 = rate.simplify()
     assert r2.data.unit == u.Unit("m3 / (s K(1/2))")
+
 
 def test_CP():
     rate_dict = {
@@ -95,13 +101,14 @@ def test_CP():
         "data": {
             "unit": "m3 / (h K(1/2))",
             "value": [1, 2, 3, 4],
-        }
+        },
     }
     with pytest.raises(pydantic.ValidationError):
         rate = CollisionalRate.model_validate(rate_dict)
 
     rate_dict["data"]["unit"] = "m3 / s"
     rate = CollisionalRate.model_validate(rate_dict)
+
 
 def test_CH():
     rate_dict = {
@@ -113,7 +120,7 @@ def test_CH():
         "data": {
             "unit": "cm3 / s",
             "value": 1,
-        }
+        },
     }
     with pytest.raises(pydantic.ValidationError):
         rate = CollisionalRate.model_validate(rate_dict)
@@ -132,6 +139,7 @@ def test_CH():
     assert r2.data.unit == u.Unit("m3 /s")
     assert r2.data[1].value == pytest.approx(7e-6)
 
+
 def test_ChargeExcH():
     rate_dict = {
         "type": "ChargeExcNeutralH",
@@ -142,13 +150,14 @@ def test_ChargeExcH():
         "data": {
             "unit": "m3 / s",
             "value": [1, 2, 3, 4],
-        }
+        },
     }
     with pytest.raises(pydantic.ValidationError):
         rate = CollisionalRate.model_validate(rate_dict)
 
     rate_dict["type"] = "ChargeExcH"
     rate = CollisionalRate.model_validate(rate_dict)
+
 
 def test_ChargeExcP():
     rate_dict = {
@@ -160,7 +169,7 @@ def test_ChargeExcP():
         "data": {
             "unit": "m3 / s",
             "value": [[1, 2, 3, 4], [5, 6, 7, 8]],
-        }
+        },
     }
     with pytest.raises(pydantic.ValidationError):
         rate = CollisionalRate.model_validate(rate_dict)
@@ -169,5 +178,3 @@ def test_ChargeExcP():
     rate_dict["data"]["value"] = rate_dict["data"]["value"][1]
     rate = CollisionalRate.model_validate(rate_dict)
     assert isinstance(rate, ChargeExcPRate)
-
-

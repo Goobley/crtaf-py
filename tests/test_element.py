@@ -2,6 +2,7 @@ import pydantic
 import pytest
 from crtaf.core_types import Element
 
+
 def test_normal():
     data = {
         "symbol": "H",
@@ -11,6 +12,7 @@ def test_normal():
 
     Element.model_validate(data)
 
+
 def test_missing():
     data = {
         "atomic_mass": 1.005,
@@ -19,6 +21,7 @@ def test_missing():
 
     with pytest.raises(pydantic.ValidationError):
         Element.model_validate(data)
+
 
 def test_greater_than_H_abundance():
     data = {

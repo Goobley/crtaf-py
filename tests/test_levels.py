@@ -4,6 +4,7 @@ import pydantic
 import pytest
 from crtaf.core_types import AtomicLevel, SimplifiedAtomicLevel
 
+
 def test_normal():
     data = {
         "energy": {
@@ -16,6 +17,7 @@ def test_normal():
     }
 
     AtomicLevel.model_validate(data)
+
 
 def test_wrong_unit():
     data = {
@@ -30,6 +32,7 @@ def test_wrong_unit():
 
     with pytest.raises(pydantic.ValidationError):
         AtomicLevel.model_validate(data)
+
 
 def test_JLS():
     data = {
@@ -46,6 +49,7 @@ def test_JLS():
     }
 
     AtomicLevel.model_validate(data)
+
 
 def test_J_only():
     data = {
@@ -64,6 +68,7 @@ def test_J_only():
     with pytest.raises(pydantic.ValidationError):
         AtomicLevel.model_validate(data)
 
+
 def test_simplified():
     data = {
         "energy": 10 * u.cm**-1,
@@ -76,6 +81,7 @@ def test_simplified():
     assert s.energy.unit == u.cm**-1
     assert s.energy_eV.unit == u.eV
 
+
 def test_simplified_J_only():
     data = {
         "energy": 10 * u.cm**-1,
@@ -87,6 +93,7 @@ def test_simplified_J_only():
 
     with pytest.raises(pydantic.ValidationError):
         s = SimplifiedAtomicLevel.model_validate(data)
+
 
 def test_simplify_model():
     data = {
@@ -107,7 +114,8 @@ def test_simplify_model():
     assert s.stage == 1
     assert s.label == "Some Level"
 
-def test_parse_levels(): 
+
+def test_parse_levels():
     class Levels(pydantic.BaseModel):
         levels: Dict[str, pydantic.SerializeAsAny[AtomicLevel]]
 

@@ -6,7 +6,13 @@ import lightweaver as lw
 import numpy as np
 from lightweaver.barklem import Barklem
 
-def n_eff(e_upper: u.Quantity[u.J], e_lower: u.Quantity[u.J], Z: int, mass: Optional[u.Quantity[u.u]] = None):
+
+def n_eff(
+    e_upper: u.Quantity[u.J],
+    e_lower: u.Quantity[u.J],
+    Z: int,
+    mass: Optional[u.Quantity[u.u]] = None,
+):
     """
     Effective principal quantum number for transition
 
@@ -24,7 +30,7 @@ def n_eff(e_upper: u.Quantity[u.J], e_lower: u.Quantity[u.J], Z: int, mass: Opti
     """
     e_rydberg = const.Ryd.to(u.J, equivalencies=u.spectral())
     if mass is None:
-        h_amu = lw.PeriodicTable['H'].mass
+        h_amu = lw.PeriodicTable["H"].mass
         mass = h_amu << u.u
     # NOTE: H ionisation
     ry_h = e_rydberg / (1.0 + const.m_e / mass)
@@ -33,20 +39,25 @@ def n_eff(e_upper: u.Quantity[u.J], e_lower: u.Quantity[u.J], Z: int, mass: Opti
     e_l = e_lower.to(u.J)
     return Z * np.sqrt((ry_h / (e_u - e_l)).to(u.J / u.J))
 
+
 def Aji(lambda0, g_ij, f_value):
     cst = 2.0 * np.pi * (const.e.si / const.eps0) * (const.e.si / const.m_e) / const.c
     return (cst / lambda0**2 * g_ij * f_value).to(1.0 / u.s)
+
 
 def Bji(Aji, lambda0):
     result = Aji * lambda0**3 / (2.0 * const.h * const.c)
     return result.to("m2 / (J s)")
 
+
 def Bji_lambda(Aji, lambda0):
     result = Aji * lambda0**5 / (2.0 * const.h * const.c**2)
     return result.to("m3 / J")
 
+
 def Bij(Bji, g_ij):
-    return (Bji / g_ij)
+    return Bji / g_ij
+
 
 @dataclass
 class EinsteinCoeffs:
@@ -83,6 +94,7 @@ class EinsteinCoeffs:
             Bij_wavelength=bij_wavelength,
         )
 
+
 def constant_stark_linear_sutton(n_upper: int, n_lower: int):
     """
     Constant for hydrogenic linear Stark broadening following the implementation
@@ -114,7 +126,14 @@ def constant_stark_linear_sutton(n_upper: int, n_lower: int):
     )
     return c
 
-def c4_traving(upper_energy: u.Quantity[u.J], lower_energy: u.Quantity[u.J], overlying_cont_energy: u.Quantity[u.J], stage: int, mass: Optional[u.Quantity[u.u]] = None):
+
+def c4_traving(
+    upper_energy: u.Quantity[u.J],
+    lower_energy: u.Quantity[u.J],
+    overlying_cont_energy: u.Quantity[u.J],
+    stage: int,
+    mass: Optional[u.Quantity[u.u]] = None,
+):
     """
     Computes the C4 constant for quadratic Stark broadening following the
     Traving (1960) formalism.
@@ -136,7 +155,7 @@ def c4_traving(upper_energy: u.Quantity[u.J], lower_energy: u.Quantity[u.J], ove
     """
     upper_energy = upper_energy.to(u.J, equivalencies=u.spectral())
     lower_energy = lower_energy.to(u.J, equivalencies=u.spectral())
-    overlying_cont_energy= overlying_cont_energy.to(u.J, equivalencies=u.spectral())
+    overlying_cont_energy = overlying_cont_energy.to(u.J, equivalencies=u.spectral())
     n_eff_u = n_eff(overlying_cont_energy, upper_energy, stage, mass=mass)
     n_eff_l = n_eff(overlying_cont_energy, lower_energy, stage, mass=mass)
     Z = stage
@@ -154,6 +173,7 @@ def c4_traving(upper_energy: u.Quantity[u.J], lower_energy: u.Quantity[u.J], ove
     )
     C4 <<= u.m**4 / u.s
     return C4
+
 
 def constant_stark_quadratic(
     upper_energy: u.Quantity[u.J],
@@ -191,12 +211,13 @@ def constant_stark_quadratic(
         mean_atomic_mass = 28.0 << u.u
 
     v_rel_const = (8.0 * const.k_B / (np.pi * mass) << u.Unit("J / (K kg)")).value
-    v_rel_e = (1.0 + (mass / const.m_e))**(1.0 / 6.0)
-    v_rel_s = (1.0 + (mass / mean_atomic_mass))**(1.0 / 6.0)
-    v_rel_term = v_rel_const**(1.0 / 6.0) * (v_rel_e + v_rel_s)
+    v_rel_e = (1.0 + (mass / const.m_e)) ** (1.0 / 6.0)
+    v_rel_s = (1.0 + (mass / mean_atomic_mass)) ** (1.0 / 6.0)
+    v_rel_term = v_rel_const ** (1.0 / 6.0) * (v_rel_e + v_rel_s)
     C4 = c4_traving(upper_energy, lower_energy, overlying_cont_energy, stage, mass=mass)
-    C4_23 = (scaling * C4).value**(2.0 / 3.0)
+    C4_23 = (scaling * C4).value ** (2.0 / 3.0)
     return (11.37 * u.Unit("m3 rad / s")) * v_rel_term * C4_23
+
 
 def constant_unsold(
     upper_energy: u.Quantity[u.J],
@@ -234,7 +255,9 @@ def constant_unsold(
     e_i = lower_energy.to(u.J, equivalencies=u.spectral())
     e_cont = overlying_cont_energy.to(u.J, equivalencies=u.spectral())
     Z = stage
-    abar_h = 4.5 * 4.0 * np.pi * const.eps0 * const.a0**3  # polarizability of H [Fm^2]
+    abar_h = (
+        4.5 * 4.0 * np.pi * const.eps0 * const.a0**3
+    )  # polarizability of H [Fm^2]
 
     ryd = const.Ryd.to(u.J, equivalencies=u.spectral())
     delta_r = ((ryd / (e_cont - e_j)) ** 2 - (ryd / (e_cont - e_i)) ** 2).to(u.J / u.J)
@@ -253,8 +276,13 @@ def constant_unsold(
     ).to(u.Unit("C2 m6 / (F J s)"))
 
     v_rel_const = (8.0 * const.k_B / (np.pi * mass)).to(u.Unit("J / (K kg)")).value
-    v_rel_h = v_rel_const * (1.0 + mass / (lw.PeriodicTable['H'].mass << u.u))
-    v_rel_he = v_rel_const * (1.0 + mass / (lw.PeriodicTable['He'].mass << u.u))
-    he_abund = lw.DefaultAtomicAbundance['He']
-    coeff = 8.08 * (H_scaling * v_rel_h**0.3 + He_scaling * he_abund * v_rel_he**0.3) * C6.value**0.4 * u.Unit("m3 rad / s")
+    v_rel_h = v_rel_const * (1.0 + mass / (lw.PeriodicTable["H"].mass << u.u))
+    v_rel_he = v_rel_const * (1.0 + mass / (lw.PeriodicTable["He"].mass << u.u))
+    he_abund = lw.DefaultAtomicAbundance["He"]
+    coeff = (
+        8.08
+        * (H_scaling * v_rel_h**0.3 + He_scaling * he_abund * v_rel_he**0.3)
+        * C6.value**0.4
+        * u.Unit("m3 rad / s")
+    )
     return coeff

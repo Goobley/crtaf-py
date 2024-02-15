@@ -3,27 +3,24 @@ import numpy as np
 from crtaf.core_types import AstropyQty
 from pydantic import BaseModel
 
+
 class QtyTest(BaseModel):
     data: AstropyQty
 
+
 def test_basic_list():
-    data = {
-        "data": {
-            "unit": "1 / s",
-            "value": [1, 2, 3, 4]
-        }
-    }
+    data = {"data": {"unit": "1 / s", "value": [1, 2, 3, 4]}}
     t = QtyTest.model_validate(data)
     assert t.data.value.shape[0] == 4
     assert t.data.unit == 1.0 / u.s
 
+
 def test_premade_array():
-    data = {
-        "data": np.linspace(0, 10, 10) * u.m
-    }
+    data = {"data": np.linspace(0, 10, 10) * u.m}
     t = QtyTest.model_validate(data)
     assert t.data.value.shape[0] == 10
     assert t.data.unit == u.m
+
 
 def test_single_dict():
     data = {
@@ -35,6 +32,7 @@ def test_single_dict():
     t = QtyTest.model_validate(data)
     assert t.data.value.item() == 3.1
     assert t.data.unit == u.m
+
 
 def test_single_premade_item():
     data = {

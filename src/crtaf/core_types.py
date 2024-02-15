@@ -58,14 +58,14 @@ class IterateQuantitiesMixin:
 
 
 class SimplifyAtomicStructureMixin:
-
-    def simplify(
-        self
-    ):
+    def simplify(self):
         raise NotImplementedError()
 
+
 class AtomicSimplificationVisitor:
-    def __init__(self, visitors: Dict[type, Callable], extensions: Optional[List[str]] = None):
+    def __init__(
+        self, visitors: Dict[type, Callable], extensions: Optional[List[str]] = None
+    ):
         self.visitors = visitors
         if extensions is None:
             extensions = []
@@ -88,11 +88,14 @@ class AtomicSimplificationVisitor:
             else:
                 raise ValueError(f"No valid visitor for type {type(obj)!r}")
         else:
-            result = visit_fn(obj, *args, visitor=self, accept_failure=accept_failure, **kwargs)
+            result = visit_fn(
+                obj, *args, visitor=self, accept_failure=accept_failure, **kwargs
+            )
 
-        if hasattr(result, '_crtaf_ext_name'):
+        if hasattr(result, "_crtaf_ext_name"):
             self.extensions_encountered.add(result._crtaf_ext_name)
         return result
+
 
 class CrtafBaseModel(BaseModel):
     """
@@ -100,7 +103,7 @@ class CrtafBaseModel(BaseModel):
     allow for formatting control and simplify converting to string.
     """
 
-    def model_dump(self, *args, exclude_none: bool=True, **kwargs):
+    def model_dump(self, *args, exclude_none: bool = True, **kwargs):
         return super().model_dump(*args, exclude_none=exclude_none, **kwargs)
 
     @staticmethod
@@ -128,12 +131,16 @@ class CrtafBaseModel(BaseModel):
         return result
 
     @staticmethod
-    def _recursive_list_format(attr: List[Any], serialised: CommentedSeq) -> CommentedSeq:
+    def _recursive_list_format(
+        attr: List[Any], serialised: CommentedSeq
+    ) -> CommentedSeq:
         result = CommentedSeq()
         for i, f in enumerate(attr):
             if isinstance(f, CrtafBaseModel):
                 if not isinstance(serialised[i], (dict, CommentedMap)):
-                    raise ValueError(f"model_dump failed to serialise to dict, got {type(serialised[i])!r}.")
+                    raise ValueError(
+                        f"model_dump failed to serialise to dict, got {type(serialised[i])!r}."
+                    )
                 result.append(CrtafBaseModel._recursive_yaml_format(f, serialised[i]))
             elif isinstance(f, list):
                 result.append(CrtafBaseModel._recursive_list_format(f, serialised[i]))
@@ -156,7 +163,9 @@ class CrtafBaseModel(BaseModel):
                 attr = getattr(self, k)
                 if isinstance(attr, CrtafBaseModel):
                     if not isinstance(v, dict):
-                        raise ValueError(f"The result of model_dump from a BaseModel should be a dict, got {type(attr)!r}")
+                        raise ValueError(
+                            f"The result of model_dump from a BaseModel should be a dict, got {type(attr)!r}"
+                        )
                     dd = attr._recursive_yaml_format(d[k])
                     d[k] = dd
                 elif isinstance(attr, list):
@@ -180,7 +189,7 @@ class CrtafBaseModel(BaseModel):
     def yaml_dumps(self, *args, **kwargs) -> str:
         """YAML string representation of the model."""
         stream = StringIO()
-        yaml = ruamel.yaml.YAML(typ='rt')
+        yaml = ruamel.yaml.YAML(typ="rt")
         data = self.yaml_dict()
         yaml.dump(data, stream)
         return stream.getvalue()
@@ -188,7 +197,7 @@ class CrtafBaseModel(BaseModel):
     @classmethod
     def yaml_loads(cls, inp: str):
         """Construct from YAML string representation."""
-        yaml = ruamel.yaml.YAML(typ='rt')
+        yaml = ruamel.yaml.YAML(typ="rt")
         data = yaml.load(inp)
         return cls.model_validate(data)
 
@@ -253,7 +262,6 @@ class _AstropyQtyAnnotation:
         _source_type: Any,
         _handler: GetCoreSchemaHandler,
     ) -> core_schema.CoreSchema:
-
         def validate_qty(qty: DimensionalQuantity) -> u.Quantity:
             validated_unit = u.Unit(qty.unit)
             return qty.value << validated_unit
@@ -346,9 +354,7 @@ class AtomicLevel(CrtafBaseModel, IterateQuantitiesMixin, SimplifyAtomicStructur
             )
         return self
 
-    def simplify(
-        self
-    ) -> "SimplifiedAtomicLevel":
+    def simplify(self) -> "SimplifiedAtomicLevel":
         return SimplifiedAtomicLevel(
             energy=self.energy,
             energy_eV=self.energy,
@@ -391,9 +397,7 @@ class LineBroadening(
     type: str
     elastic: Optional[bool] = True
 
-    def simplify(
-        self
-    ) -> "LineBroadening":
+    def simplify(self) -> "LineBroadening":
         return super().simplify()
 
     def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
@@ -412,14 +416,14 @@ class NaturalBroadening(LineBroadening, type_name="Natural"):
         value.to(u.s**-1)
         return value
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         new_value = self.value.to(u.s**-1)
         return NaturalBroadening(type=self.type, value=new_value)
 
+
 class ElasticBroadening(LineBroadening, type_name="__elastic"):
     elastic: Optional[bool] = True
+
 
 class StarkLinearSutton(ElasticBroadening, type_name="Stark_Linear_Sutton"):
     type: Literal["Stark_Linear_Sutton"]
@@ -440,19 +444,17 @@ class StarkLinearSutton(ElasticBroadening, type_name="Stark_Linear_Sutton"):
 
         return self
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         raise NotImplementedError()
+
 
 class StarkQuadratic(ElasticBroadening, type_name="Stark_Quadratic"):
     type: Literal["Stark_Quadratic"]
     scaling: Optional[float] = 1.0
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         raise NotImplementedError()
+
 
 class StarkMultiplicative(ElasticBroadening, type_name="Stark_Multiplicative"):
     type: Literal["Stark_Multiplicative"]
@@ -477,13 +479,12 @@ class VdWUnsold(ElasticBroadening, type_name="VdW_Unsold"):
             von Spektrallinien", p 91-97
         - Mihalas 1978, p. 282ff, and Table 9-1
     """
+
     type: Literal["VdW_Unsold"]
     H_scaling: float = 1.0
     He_scaling: float = 1.0
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         raise NotImplementedError()
 
 
@@ -495,9 +496,7 @@ class ScaledExponents(LineBroadening, type_name="Scaled_Exponents"):
     hydrogen_exponent: float
     electron_exponent: float
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         return self
 
 
@@ -509,9 +508,7 @@ class WavelengthGrid(
 ):
     type: str
 
-    def simplify(
-        self
-    ) -> "WavelengthGrid":
+    def simplify(self) -> "WavelengthGrid":
         raise NotImplementedError()
 
 
@@ -526,9 +523,7 @@ class LinearGrid(WavelengthGrid, type_name="Linear"):
         value.to(u.nm)
         return value
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         delta_lambda = self.delta_lambda.to(u.nm)
         return LinearGrid(
             type=self.type, n_lambda=self.n_lambda, delta_lambda=delta_lambda
@@ -550,14 +545,12 @@ class TabulatedGrid(WavelengthGrid, type_name="Tabulated"):
 
         return value
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         wavelengths = self.wavelengths.to(u.nm)
         return TabulatedGrid(type=self.type, wavelengths=wavelengths)
 
     def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
-        c['wavelengths'].fa.set_flow_style()
+        c["wavelengths"].fa.set_flow_style()
         return c
 
 
@@ -594,7 +587,7 @@ class VoigtBoundBound(AtomicBoundBound, type_name="Voigt"):
     lambda0: Optional[AstropyQty] = None
 
     def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
-        c['transition'].fa.set_flow_style()
+        c["transition"].fa.set_flow_style()
         return c
 
 
@@ -619,9 +612,7 @@ class AtomicBoundFreeImpl(
             raise ValueError(f"Transitions can only be between two levels, got {v}")
         return v
 
-    def simplify(
-        self
-    ) -> "AtomicBoundFreeImpl":
+    def simplify(self) -> "AtomicBoundFreeImpl":
         return super().simplify()
 
 
@@ -634,9 +625,7 @@ class HydrogenicBoundFree(AtomicBoundFree, type_name="Hydrogenic"):
     lambda_min: AstropyQty
     n_lambda: int
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         sigma_peak = self.sigma_peak.to(u.m**2)
         lambda_min = self.lambda_min.to(u.nm)
         return HydrogenicBoundFree(
@@ -648,7 +637,7 @@ class HydrogenicBoundFree(AtomicBoundFree, type_name="Hydrogenic"):
         )
 
     def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
-        c['transition'].fa.set_flow_style()
+        c["transition"].fa.set_flow_style()
         return c
 
 
@@ -729,9 +718,7 @@ class TabulatedBoundFree(AtomicBoundFree, type_name="Tabulated"):
             "value": value,
         }
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         wavelengths = self.wavelengths.to(u.nm)
         sigma = self.sigma.to(u.m**2)
         return TabulatedBoundFree(
@@ -742,10 +729,11 @@ class TabulatedBoundFree(AtomicBoundFree, type_name="Tabulated"):
         )
 
     def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
-        c['transition'].fa.set_flow_style()
-        for l in c['value']:
+        c["transition"].fa.set_flow_style()
+        for l in c["value"]:
             l.fa.set_flow_style()
         return c
+
 
 class CollisionalRateImpl(
     PolymorphicBaseModel,
@@ -755,38 +743,43 @@ class CollisionalRateImpl(
 ):
     type: str
 
+
 CollisionalRate = SerializeAsAny[CollisionalRateImpl]
+
 
 class TemperatureInterpolationRateImpl(
     CollisionalRateImpl,
     IterateQuantitiesMixin,
     SimplifyAtomicStructureMixin,
-    type_name="__temperature_interpolation"
+    type_name="__temperature_interpolation",
 ):
     type: str
     temperature: AstropyQty
     data: AstropyQty
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def _validate_lengths(self):
         if self.temperature.shape != self.data.shape:
-            raise ValueError("Temperature and Data must have the same shape for a TemperatureInterpolationRate.")
+            raise ValueError(
+                "Temperature and Data must have the same shape for a TemperatureInterpolationRate."
+            )
         if self.temperature.ndim != 1:
-            raise ValueError("Temperature and Data must be one-dimensional for a TemperatureInterpolationRate.")
+            raise ValueError(
+                "Temperature and Data must be one-dimensional for a TemperatureInterpolationRate."
+            )
         if self.temperature.shape[0] < 2:
-            raise ValueError("Temperature and Data must have at least two entries for a TemperatureInterpolationRate.")
+            raise ValueError(
+                "Temperature and Data must have at least two entries for a TemperatureInterpolationRate."
+            )
 
         return self
 
-
-    def simplify(
-        self
-    ) -> "TemperatureInterpolationRateImpl":
+    def simplify(self) -> "TemperatureInterpolationRateImpl":
         return super().simplify()
 
     def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
-        c['temperature']['value'].fa.set_flow_style()
-        c['data']['value'].fa.set_flow_style()
+        c["temperature"]["value"].fa.set_flow_style()
+        c["data"]["value"].fa.set_flow_style()
         return c
 
 
@@ -800,17 +793,13 @@ class OmegaRate(TemperatureInterpolationRate, type_name="Omega"):
 
     Scales as 1/(sqrt T) exp(DeltaE)
     """
+
     type: Literal["Omega"]
 
-    def simplify(
-        self
-    ) -> "OmegaRate":
+    def simplify(self) -> "OmegaRate":
         temperature = self.temperature.to(u.K)
-        return OmegaRate(
-            type="Omega",
-            temperature=temperature,
-            data=self.data
-        )
+        return OmegaRate(type="Omega", temperature=temperature, data=self.data)
+
 
 class CIRate(TemperatureInterpolationRate, type_name="CI"):
     """
@@ -819,6 +808,7 @@ class CIRate(TemperatureInterpolationRate, type_name="CI"):
 
     Scales as 1/(sqrt T) exp(DeltaE)
     """
+
     type: Literal["CI"]
 
     @field_validator("data")
@@ -827,16 +817,11 @@ class CIRate(TemperatureInterpolationRate, type_name="CI"):
         v.to("s-1 K(-1/2) m3")
         return v
 
-    def simplify(
-        self
-    ) -> "CIRate":
+    def simplify(self) -> "CIRate":
         temperature = self.temperature.to(u.K)
         data = self.data.to("s-1 K(-1/2) m3")
-        return CIRate(
-            type="CI",
-            temperature=temperature,
-            data=data
-        )
+        return CIRate(type="CI", temperature=temperature, data=data)
+
 
 class CERate(TemperatureInterpolationRate, type_name="CE"):
     """
@@ -845,6 +830,7 @@ class CERate(TemperatureInterpolationRate, type_name="CE"):
 
     Scales as 1/(sqrt T) exp(DeltaE)
     """
+
     type: Literal["CE"]
 
     @field_validator("data")
@@ -853,16 +839,11 @@ class CERate(TemperatureInterpolationRate, type_name="CE"):
         v.to("s-1 K(-1/2) m3")
         return v
 
-    def simplify(
-        self
-    ) -> "CERate":
+    def simplify(self) -> "CERate":
         temperature = self.temperature.to(u.K)
         data = self.data.to("s-1 K(-1/2) m3")
-        return CERate(
-            type="CE",
-            temperature=temperature,
-            data=data
-        )
+        return CERate(type="CE", temperature=temperature, data=data)
+
 
 class CPRate(TemperatureInterpolationRate, type_name="CP"):
     """
@@ -871,6 +852,7 @@ class CPRate(TemperatureInterpolationRate, type_name="CP"):
 
     Scales with proton density
     """
+
     type: Literal["CP"]
 
     @field_validator("data")
@@ -879,16 +861,11 @@ class CPRate(TemperatureInterpolationRate, type_name="CP"):
         v.to("m3 / s")
         return v
 
-    def simplify(
-        self
-    ) -> "CPRate":
+    def simplify(self) -> "CPRate":
         temperature = self.temperature.to(u.K)
         data = self.data.to("m3 / s")
-        return CPRate(
-            type="CP",
-            temperature=temperature,
-            data=data
-        )
+        return CPRate(type="CP", temperature=temperature, data=data)
+
 
 class CHRate(TemperatureInterpolationRate, type_name="CH"):
     """
@@ -897,6 +874,7 @@ class CHRate(TemperatureInterpolationRate, type_name="CH"):
 
     Scales with neutral H density
     """
+
     type: Literal["CH"]
 
     @field_validator("data")
@@ -905,16 +883,11 @@ class CHRate(TemperatureInterpolationRate, type_name="CH"):
         v.to("m3 / s")
         return v
 
-    def simplify(
-        self
-    ) -> "CHRate":
+    def simplify(self) -> "CHRate":
         temperature = self.temperature.to(u.K)
         data = self.data.to("m3 / s")
-        return CHRate(
-            type="CH",
-            temperature=temperature,
-            data=data
-        )
+        return CHRate(type="CH", temperature=temperature, data=data)
+
 
 class ChargeExcHRate(TemperatureInterpolationRate, type_name="ChargeExcH"):
     """
@@ -923,6 +896,7 @@ class ChargeExcHRate(TemperatureInterpolationRate, type_name="ChargeExcH"):
 
     Scales with neutral H density
     """
+
     type: Literal["ChargeExcH"]
 
     @field_validator("data")
@@ -931,16 +905,11 @@ class ChargeExcHRate(TemperatureInterpolationRate, type_name="ChargeExcH"):
         v.to("m3 / s")
         return v
 
-    def simplify(
-        self
-    ) -> "ChargeExcHRate":
+    def simplify(self) -> "ChargeExcHRate":
         temperature = self.temperature.to(u.K)
         data = self.data.to("m3 / s")
-        return ChargeExcHRate(
-            type="ChargeExcH",
-            temperature=temperature,
-            data=data
-        )
+        return ChargeExcHRate(type="ChargeExcH", temperature=temperature, data=data)
+
 
 class ChargeExcPRate(TemperatureInterpolationRate, type_name="ChargeExcP"):
     """
@@ -949,6 +918,7 @@ class ChargeExcPRate(TemperatureInterpolationRate, type_name="ChargeExcP"):
 
     Scales with proton density
     """
+
     type: Literal["ChargeExcP"]
 
     @field_validator("data")
@@ -957,22 +927,17 @@ class ChargeExcPRate(TemperatureInterpolationRate, type_name="ChargeExcP"):
         v.to("m3 / s")
         return v
 
-    def simplify(
-        self
-    ) -> "ChargeExcPRate":
+    def simplify(self) -> "ChargeExcPRate":
         temperature = self.temperature.to(u.K)
         data = self.data.to("m3 / s")
-        return ChargeExcPRate(
-            type="ChargeExcP",
-            temperature=temperature,
-            data=data
-        )
+        return ChargeExcPRate(type="ChargeExcP", temperature=temperature, data=data)
 
 
 class TransCollisionalRates(CrtafBaseModel):
     """
     Container for all the rates affecting a given transition.
     """
+
     transition: List[str]
     data: List[SerializeAsAny[CollisionalRate]]
 
@@ -984,9 +949,7 @@ class TransCollisionalRates(CrtafBaseModel):
             raise ValueError(f"Transitions can only be between two levels, got {v}")
         return v
 
-    def simplify(
-        self
-    ):
+    def simplify(self):
         data = [d.simplify() for d in self.data]
         return TransCollisionalRates(
             transition=self.transition,
@@ -994,7 +957,7 @@ class TransCollisionalRates(CrtafBaseModel):
         )
 
     def format_yaml_dict(self, c: CommentedMap) -> CommentedMap:
-        c['transition'].fa.set_flow_style()
+        c["transition"].fa.set_flow_style()
         return c
 
 
@@ -1019,7 +982,9 @@ class Atom(CrtafBaseModel):
 
         def sort_transitions(transitions: List[str]) -> List[str]:
             # NOTE(cmo): Sort transition keys to be in descending energy order (i.e. [j, i])
-            return sorted(transitions, key=lambda t: self.levels[t].energy, reverse=True)
+            return sorted(
+                transitions, key=lambda t: self.levels[t].energy, reverse=True
+            )
 
         for i, line in enumerate(self.radiative_bound_bound):
             for j in range(2):

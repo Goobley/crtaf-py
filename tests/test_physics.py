@@ -3,9 +3,20 @@ import pytest
 import astropy.units as u
 import astropy.constants as const
 import lightweaver as lw
-from crtaf.physics_utils import EinsteinCoeffs, c4_traving, constant_stark_linear_sutton, constant_stark_quadratic, constant_unsold
+from crtaf.physics_utils import (
+    EinsteinCoeffs,
+    c4_traving,
+    constant_stark_linear_sutton,
+    constant_stark_quadratic,
+    constant_unsold,
+)
 from lightweaver.rh_atoms import CaII_atom, H_6_atom
-from lightweaver.broadening import QuadraticStarkBroadening as LwQuadraticStarkBroadening, HydrogenLinearStarkBroadening as LwHydrogenLinearStarkBroadening, VdwUnsold as LwVdwUnsold
+from lightweaver.broadening import (
+    QuadraticStarkBroadening as LwQuadraticStarkBroadening,
+    HydrogenLinearStarkBroadening as LwHydrogenLinearStarkBroadening,
+    VdwUnsold as LwVdwUnsold,
+)
+
 
 def test_sutton():
     stark = constant_stark_linear_sutton(3, 1)
@@ -29,7 +40,9 @@ def test_sutton():
         nHTot=np.ones(2),
     )
     # TODO(cmo): This depends on Lightweaver continuing to follow the old, likely incorrect RH interpretation.
-    assert stark_32.value == pytest.approx(4.0 * np.pi * 0.425 * b.broaden(atmos, None)[0], abs=0.0, rel=1e-4)
+    assert stark_32.value == pytest.approx(
+        4.0 * np.pi * 0.425 * b.broaden(atmos, None)[0], abs=0.0, rel=1e-4
+    )
 
 
 def test_quadratic_stark():
@@ -46,7 +59,7 @@ def test_quadratic_stark():
     l = ca.lines[0]
     b = l.broadening.elastic[1]
     assert isinstance(b, LwQuadraticStarkBroadening)
-    lw_val = b.cStark23 * b.C**(1.0 / 6.0) * b.Cm
+    lw_val = b.cStark23 * b.C ** (1.0 / 6.0) * b.Cm
     cst_ca = constant_stark_quadratic(
         l.jLevel.E_eV << u.eV,
         l.iLevel.E_eV << u.eV,
@@ -56,6 +69,7 @@ def test_quadratic_stark():
     )
     assert cst_ca.value == pytest.approx(lw_val, abs=0.0, rel=1e-4)
     assert cst_ca.unit == u.Unit("m3 rad / s")
+
 
 def test_vdw_unsold():
     cst = constant_unsold(1.1 * u.aJ, 1.0 * u.aJ, 1.5 * u.aJ, 1, 1.0 * u.kg)
@@ -71,11 +85,12 @@ def test_vdw_unsold():
         l.iLevel.E_eV << u.eV,
         l.overlyingContinuumLevel.E_eV << u.eV,
         l.iLevel.stage + 1,
-        h.element.mass << u.u
+        h.element.mass << u.u,
     )
-    he_abund = lw.DefaultAtomicAbundance['He']
+    he_abund = lw.DefaultAtomicAbundance["He"]
     cst_lw = 8.08 * (b.vRel35H + he_abund * b.vRel35He) * b.C625
     assert cst_h.value == pytest.approx(cst_lw, abs=0.0, rel=1e-4)
+
 
 def test_einstein_coeffs():
     h = H_6_atom()
