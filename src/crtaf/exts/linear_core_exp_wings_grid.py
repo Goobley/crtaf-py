@@ -12,7 +12,7 @@ class LinearCoreExpWings(WavelengthGrid, type_name="LinearCoreExpWings"):
     RH-Style line quadrature, with approximately linear core spacing and
     exponential wing spacing, by using a function of the form
     q(n) = a*(n + (exp(b*n)-1))
-    with n \in [0, N) satisfying the following conditions:
+    with n in [0, N) satisfying the following conditions:
 
      - q[0] = 0
 
