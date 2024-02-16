@@ -25,7 +25,7 @@ This package is primarily of use to those working with atomic data to feed into 
 📖 Documentation
 ----------------
 
-The package is documented via docstrings, the [format specification](https://github.com/Goobley/CommonRTAtomicFormat), and [here](TODO).
+The package is documented via docstrings, and the [format specification](https://github.com/Goobley/CommonRTAtomicFormat).
 
 ⬇ Installation
 --------------
