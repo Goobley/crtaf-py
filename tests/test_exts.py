@@ -7,7 +7,7 @@ import numpy as np
 
 from copy import deepcopy
 
-from crtaf.core_types import Atom, AtomicSimplificationVisitor
+from crtaf.core_types import Atom, AtomicSimplificationVisitor, TabulatedGrid
 
 
 Data = {
@@ -227,3 +227,28 @@ def test_ext_wavelength_simplification():
     assert grid[0] < 0.0
     assert grid[2] == 0.0
     assert grid[4] > 0.0
+
+
+def test_ext_simplification_allowed():
+    data = deepcopy(Data)
+    atom = Atom.model_validate(data)
+    visitor = AtomicSimplificationVisitor(
+        default_visitors(), extensions=["multi_wavelength_grid"]
+    )
+    simplified = atom.simplify_visit(visitor)
+    assert simplified.crtaf_meta.extensions[0] == "multi_wavelength_grid"
+    assert isinstance(
+        simplified.radiative_bound_bound[0].wavelength_grid, TabulatedGrid
+    )
+    assert isinstance(
+        simplified.radiative_bound_bound[2].wavelength_grid, MultiWavelengthGrid
+    )
+
+    # NOTE(cmo): Intentional Typo
+    visitor = AtomicSimplificationVisitor(
+        default_visitors(), extensions=["______multi_wavelength_grid"]
+    )
+    simplified = atom.simplify_visit(visitor)
+    assert isinstance(
+        simplified.radiative_bound_bound[1].wavelength_grid, TabulatedGrid
+    )

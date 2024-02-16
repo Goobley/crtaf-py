@@ -1,5 +1,6 @@
 from copy import deepcopy
 import ruamel.yaml
+from crtaf.spec_version import spec_version
 from crtaf.simplification_visitors import default_visitors
 from crtaf.core_types import (
     Atom,
@@ -146,9 +147,11 @@ Data = {
         },
     ],
 }
-high_level_yaml = r"""crtaf_meta:
-  version: v0.1.0
-  level: high-level
+high_level_yaml = (
+    f"""crtaf_meta:
+  version: {spec_version}
+"""
+    r"""  level: high-level
   extensions: []
   notes: A test.
 element:
@@ -265,10 +268,13 @@ collisional_rates:
       unit: m3 / s
       value: [50.0, 70.0]
 """
+)
 
-low_level_yaml = r"""crtaf_meta:
-  version: v0.1.0
-  level: high-level
+low_level_yaml = (
+    f"""crtaf_meta:
+  version: {spec_version}
+"""
+    r"""  level: simplified
   extensions: []
   notes: A test.
 element:
@@ -435,6 +441,7 @@ collisional_rates:
       unit: m3 / s
       value: [50.0, 70.0]
 """
+)
 
 
 def test_yaml_regression():

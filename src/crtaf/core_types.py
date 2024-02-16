@@ -23,6 +23,8 @@ import ruamel.yaml
 from ruamel.yaml import CommentedMap, CommentedSeq
 from ruamel.yaml.comments import CommentedBase
 
+from crtaf.spec_version import spec_version
+
 
 class IterateQuantitiesMixin:
     """Simple mixin to allow for keeping track of all Quantities on a type and
@@ -63,6 +65,18 @@ class SimplifyAtomicStructureMixin:
 
 
 class AtomicSimplificationVisitor:
+    """
+    Handler to simplify a model atom using the provided set of visitors.
+
+    Parameters
+    ----------
+    visitors : dict
+        Mapping of type to function that simplifies that type (potentially just
+        ensuring units are correct).
+    extensions : list of str
+        The names of extensions to accept (not simplify) on the model.
+    """
+
     def __init__(
         self, visitors: Dict[type, Callable], extensions: Optional[List[str]] = None
     ):
@@ -72,7 +86,21 @@ class AtomicSimplificationVisitor:
         self.extensions = extensions
         self.extensions_encountered = set()
 
-    def visit(self, obj, *args, accept_failure: bool = False, **kwargs) -> Any:
+    def visit(
+        self, obj: "CrtafBaseModel", *args, accept_failure: bool = False, **kwargs
+    ) -> Any:
+        """
+        Apply the visitors to the model atom. Extra arguments are passed onto
+        the visitors.
+
+        Parameters
+        ----------
+        obj : CrtafBaseModel
+            The component to simplify (call with the Atom by default).
+        accept_failure : bool, optional
+            Whether to maintain objects that don't have a visitor provided and
+            aren't in the extension list. Default, False.
+        """
         visit_fn = None
         if type(obj) in self.visitors:
             visit_fn = self.visitors[type(obj)]
@@ -82,7 +110,13 @@ class AtomicSimplificationVisitor:
                     visit_fn = self.visitors[cls]
                     break
 
-        if visit_fn is None:
+        ext_name = None
+        if hasattr(obj, "_crtaf_ext_name"):
+            ext_name = obj._crtaf_ext_name
+
+        if ext_name is not None and ext_name in self.extensions:
+            result = obj
+        elif visit_fn is None:
             if accept_failure:
                 result = obj
             else:
@@ -1011,9 +1045,14 @@ class Atom(CrtafBaseModel):
         lines = [visitor.visit(v, roots=root) for v in self.radiative_bound_bound]
         cont = [visitor.visit(v, roots=root) for v in self.radiative_bound_free]
         coll = [visitor.visit(v, roots=root) for v in self.collisional_rates]
-        # TODO(cmo): Update meta.
+        new_meta = Metadata(
+            version=spec_version,
+            level="simplified",
+            extensions=list(visitor.extensions_encountered),
+            notes=self.crtaf_meta.notes,
+        )
         return Atom(
-            crtaf_meta=self.crtaf_meta,
+            crtaf_meta=new_meta,
             element=self.element,
             levels=levels,
             radiative_bound_bound=lines,
