@@ -7,7 +7,7 @@ Python utilities for the [Common Radiative Transfer Atomic Format](https://githu
 |   |   |   |   |
 |---|---|---|---|
 | __Maintainer__ | Chris Osborne | __Institution__ | University of Glasgow  |
-| __License__ | ![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue) | __Coverage__ | TODO
+| __License__ | ![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue) | __CI__ | ![https://github.com/Goobley/crtaf-py/actions/workflows/run_tests.yaml/badge.svg?branch=main](https://github.com/Goobley/crtaf-py/actions/workflows/run_tests.yaml/badge.svg?branch=main)
 
 
 Description
