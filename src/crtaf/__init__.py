@@ -47,6 +47,7 @@ from .physics_utils import (
 )
 
 from .simplification_visitors import default_visitors
+from .spec_version import spec_version as __spec_version__
 from .version import version as __version__
 
 from .exts.linear_core_exp_wings_grid import (
