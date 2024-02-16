@@ -41,6 +41,7 @@ def n_eff(
     e_l = e_lower.to(u.J)
     return Z * np.sqrt((ry_h / (e_u - e_l)).to(u.J / u.J))
 
+
 def compute_lambda0(atom: Atom, line: AtomicBoundBound):
     """
     Calculate the rest wavelength of a transition in nm (as a Quantity).
@@ -53,9 +54,9 @@ def compute_lambda0(atom: Atom, line: AtomicBoundBound):
         The specified transition on atom.
     """
     trans = line.transition
-    delta_E = (atom.levels[trans[0]].energy - atom.levels[trans[1]].energy).to(
-        u.J, equivalencies=u.spectral()
-    )
+    e_j = atom.levels[trans[0]].energy.to(u.J, equivalencies=u.spectral())
+    e_i = atom.levels[trans[1]].energy.to(u.J, equivalencies=u.spectral())
+    delta_E = e_j - e_i
     lambda0 = ((const.h * const.c) / (delta_E)).to(u.nm)
     return lambda0
 
@@ -275,9 +276,7 @@ def constant_unsold(
     e_i = lower_energy.to(u.J, equivalencies=u.spectral())
     e_cont = overlying_cont_energy.to(u.J, equivalencies=u.spectral())
     Z = stage
-    abar_h = (
-        4.5 * 4.0 * np.pi * const.eps0 * const.a0**3
-    )  # polarizability of H [Fm^2]
+    abar_h = 4.5 * 4.0 * np.pi * const.eps0 * const.a0**3  # polarizability of H [Fm^2]
 
     ryd = const.Ryd.to(u.J, equivalencies=u.spectral())
     delta_r = ((ryd / (e_cont - e_j)) ** 2 - (ryd / (e_cont - e_i)) ** 2).to(u.J / u.J)

@@ -980,11 +980,14 @@ class Atom(CrtafBaseModel):
                     f'Transition "{name}" not found on model (seen on {type_name}[{index}]).'
                 )
 
+        energy_eV = {
+            k: v.energy.to(u.eV, equivalencies=u.spectral())
+            for k, v in self.levels.items()
+        }
+
         def sort_transitions(transitions: List[str]) -> List[str]:
             # NOTE(cmo): Sort transition keys to be in descending energy order (i.e. [j, i])
-            return sorted(
-                transitions, key=lambda t: self.levels[t].energy, reverse=True
-            )
+            return sorted(transitions, key=lambda t: energy_eV[t], reverse=True)
 
         for i, line in enumerate(self.radiative_bound_bound):
             for j in range(2):

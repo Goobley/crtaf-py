@@ -1,6 +1,7 @@
-
 import astropy.units as u
 import pytest
+from crtaf.exts.linear_core_exp_wings_grid import LinearCoreExpWings
+from crtaf.exts.multi_wavelength_grid import MultiWavelengthGrid
 from crtaf.simplification_visitors import default_visitors
 import numpy as np
 
@@ -34,8 +35,14 @@ Data = {
             "stage": 2,
             "label": "Second Level",
         },
+        "easy_offset": {
+            "energy": 500.0 * u.nm,
+            "g": 2,
+            "stage": 2,
+            "label": "Wavelength based",
+        },
         "111third": {
-            "energy": 789.0 * u.cm**-1,
+            "energy": 789342.0 * u.cm**-1,
             "g": 1,
             "stage": 3,
             "label": "Third Level",
@@ -65,15 +72,12 @@ Data = {
                 "n_lambda": 5,
                 "q_core": 30.0,
                 "q_wing": 1500.0,
-                "vmicro_char": {
-                    "value": 3.0,
-                    "unit": "km / s"
-                }
+                "vmicro_char": {"value": 3.0, "unit": "km / s"},
             },
         },
         {
             "type": "Voigt",
-            "transition": ["second", "first"],
+            "transition": ["easy_offset", "first"],
             "f_value": 0.123,
             "broadening": [
                 {"type": "Natural", "value": {"value": 1e9, "unit": "1 / s"}},
@@ -91,11 +95,38 @@ Data = {
                 },
             ],
             "wavelength_grid": {
-                "type": "Tabulated",
-                "wavelengths": {
-                    "unit": "Angstrom",
-                    "value": [-10, 0, 5, 10],
+                "type": "MULTI",
+                "q0": 3.0,
+                "q_max": 600.0,
+                "n_lambda": 5,
+                "q_norm": 8.0 * u.km / u.s,
+            },
+        },
+        {
+            "type": "Voigt",
+            "transition": ["easy_offset", "first"],
+            "f_value": 0.123,
+            "broadening": [
+                {"type": "Natural", "value": {"value": 1e9, "unit": "1 / s"}},
+                {
+                    "type": "VdW_Unsold",
+                    "He_scaling": 1.5,
                 },
+                {
+                    "type": "Stark_Quadratic",
+                },
+                {
+                    "type": "Stark_Linear_Sutton",
+                    "n_upper": 3,
+                    "n_lower": 2,
+                },
+            ],
+            "wavelength_grid": {
+                "type": "MULTI",
+                "q0": 600.0,
+                "q_max": 600.0,
+                "n_lambda": 4,  # Will be pushed to 5
+                "q_norm": 8.0 * u.km / u.s,
             },
         },
     ],
@@ -149,12 +180,50 @@ Data = {
     ],
 }
 
-def test_linear_core_exp_wings_simplification():
+
+def test_ext_wavelength_simplification():
     data = deepcopy(Data)
     atom = Atom.model_validate(data)
+    assert isinstance(atom.radiative_bound_bound[0].wavelength_grid, LinearCoreExpWings)
+    assert isinstance(
+        atom.radiative_bound_bound[1].wavelength_grid, MultiWavelengthGrid
+    )
     visitor = AtomicSimplificationVisitor(default_visitors())
     simplified = atom.simplify_visit(visitor)
+
     assert simplified.radiative_bound_bound[0].wavelength_grid.type == "Tabulated"
     assert simplified.radiative_bound_bound[0].wavelength_grid.wavelengths.unit == u.nm
     # NOTE(cmo): Values from Lw implementation, based on default Ca II H with 5 pts.
-    assert simplified.radiative_bound_bound[0].wavelength_grid.wavelengths.value == pytest.approx([-5.95850915, -0.11917018,  0.        ,  0.11917018,  5.95850915])
+    assert simplified.radiative_bound_bound[
+        0
+    ].wavelength_grid.wavelengths.value == pytest.approx(
+        [-5.95850915, -0.11917018, 0.0, 0.11917018, 5.95850915]
+    )
+
+    assert simplified.radiative_bound_bound[1].wavelength_grid.type == "Tabulated"
+    assert simplified.radiative_bound_bound[1].wavelength_grid.wavelengths.unit == u.nm
+
+    # NOTE(cmo): From Tiago's implementation
+    multi_test = (
+        np.array(
+            [
+                492.08474595750886,
+                499.9523432985373,
+                500.0,
+                500.0476657878395,
+                508.17405286233975,
+            ]
+        )
+        - 500.0
+    )
+    assert simplified.radiative_bound_bound[
+        1
+    ].wavelength_grid.wavelengths.value == pytest.approx(multi_test)
+    # NOTE(cmo): Test linear case (linear in frequency, not wavelength)
+    grid = simplified.radiative_bound_bound[2].wavelength_grid.wavelengths.value
+    nu_grid = ((grid + 500.0) * u.nm).to(u.Hz, equivalencies=u.spectral()).value
+    dnu = nu_grid[1:] - nu_grid[:-1]
+    assert dnu == pytest.approx([dnu[0]] * 4)
+    assert grid[0] < 0.0
+    assert grid[2] == 0.0
+    assert grid[4] > 0.0

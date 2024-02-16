@@ -49,4 +49,11 @@ from .physics_utils import (
 from .simplification_visitors import default_visitors
 from .version import version as __version__
 
-from .exts.linear_core_exp_wings_grid import LinearCoreExpWings, simplify_linear_core_exp_wings
+from .exts.linear_core_exp_wings_grid import (
+    LinearCoreExpWings,
+    simplify_linear_core_exp_wings,
+)
+from .exts.multi_wavelength_grid import (
+    MultiWavelengthGrid,
+    simplify_multi_wavelength_grid,
+)

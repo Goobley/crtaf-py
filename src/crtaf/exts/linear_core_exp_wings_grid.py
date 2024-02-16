@@ -1,10 +1,11 @@
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 import numpy as np
 from pydantic import field_validator
 from crtaf import WavelengthGrid, AstropyQty, TabulatedGrid
 import astropy.constants as const
 
 from crtaf.physics_utils import compute_lambda0
+
 
 class LinearCoreExpWings(WavelengthGrid, type_name="LinearCoreExpWings"):
     """
@@ -21,8 +22,10 @@ class LinearCoreExpWings(WavelengthGrid, type_name="LinearCoreExpWings"):
 
     If q_wing <= 2 * q_core, linear grid spacing will be used for this transition.
     """
+
     _crtaf_ext_name: str = "linear_core_exp_wings"
 
+    type: str = Literal["LinearCoreExpWings"]
     q_core: float
     q_wing: float
     n_lambda: int
@@ -34,9 +37,10 @@ class LinearCoreExpWings(WavelengthGrid, type_name="LinearCoreExpWings"):
         v.to("m / s")
         return v
 
+
 def simplify_linear_core_exp_wings(
     quad: LinearCoreExpWings, roots: Optional[List[Any]], visitor, *args, **kwargs
-):
+) -> TabulatedGrid:
     if roots is None:
         raise ValueError("roots must be provided (call via visitor interface).")
     atom = roots[0]
@@ -59,16 +63,11 @@ def simplify_linear_core_exp_wings(
     q_grid = np.zeros(n_lambda_full)
 
     q_grid[:n_mid][::-1] = -q[1:]
-    q_grid[n_mid+1:] = q[1:]
+    q_grid[n_mid + 1 :] = q[1:]
 
     lambda0 = compute_lambda0(atom, line)
     q_to_lambda = lambda0 * quad.vmicro_char / const.c
     result = q_grid * q_to_lambda
     # NOTE(cmo): TabulatedGrid expects grid relative to lambda0, so don't add it
     # here like we normally would.
-    return TabulatedGrid(
-        type="Tabulated",
-        wavelengths=result.to("nm")
-    )
-
-
+    return TabulatedGrid(type="Tabulated", wavelengths=result.to("nm"))

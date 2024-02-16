@@ -22,7 +22,14 @@ from crtaf.core_types import (
     VdWUnsold,
     VoigtBoundBound,
 )
-from crtaf.exts.linear_core_exp_wings_grid import LinearCoreExpWings, simplify_linear_core_exp_wings
+from crtaf.exts.linear_core_exp_wings_grid import (
+    LinearCoreExpWings,
+    simplify_linear_core_exp_wings,
+)
+from crtaf.exts.multi_wavelength_grid import (
+    MultiWavelengthGrid,
+    simplify_multi_wavelength_grid,
+)
 
 from crtaf.physics_utils import (
     EinsteinCoeffs,
@@ -252,8 +259,8 @@ def default_visitors():
         TabulatedBoundFree: simplify_tabulated_cont,
         TemperatureInterpolationRateImpl: simplify_temperature_interp_rate,
         TransCollisionalRates: simplify_trans_coll_rate,
-
         # core exts
         LinearCoreExpWings: simplify_linear_core_exp_wings,
+        MultiWavelengthGrid: simplify_multi_wavelength_grid,
     }
     return visitors
