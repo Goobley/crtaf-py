@@ -31,29 +31,32 @@ class IterateQuantitiesMixin:
     mapping unit conversions. Needs to be applied to a pydantic model`"""
 
     def qty_children(self):
-        for k, v in self:
+        for k, v in self:  # type: ignore
             if isinstance(v, IterateQuantitiesMixin):
                 yield v
 
     def named_qty_children(self):
-        for k, v in self:
+        for k, v in self:  # type: ignore
             if isinstance(v, IterateQuantitiesMixin):
                 yield k, v
 
     def quantities(self):
-        for k, v in self:
+        for k, v in self:  # type: ignore
             if isinstance(v, u.Quantity):
                 yield v
 
     def named_quantities(self):
-        for k, v in self:
+        for k, v in self:  # type: ignore
             if isinstance(v, u.Quantity):
                 yield k, v
 
-    def apply_unit_conversion(self, operation: Callable[[u.Quantity], u.Quantity]):
+    def apply_unit_conversion(
+        self, operation: Callable[[u.Quantity], Optional[u.Quantity]]
+    ):
         for k, v in self.named_quantities():
             result = operation(v)
-            self.__setattr__(k, result)
+            if result is not None:
+                self.__setattr__(k, result)
 
         for child in self.qty_children():
             child.apply_unit_conversion(operation)
@@ -112,7 +115,7 @@ class AtomicSimplificationVisitor:
 
         ext_name = None
         if hasattr(obj, "_crtaf_ext_name"):
-            ext_name = obj._crtaf_ext_name
+            ext_name = obj._crtaf_ext_name  # type: ignore
 
         if ext_name is not None and ext_name in self.extensions:
             result = obj
@@ -127,7 +130,7 @@ class AtomicSimplificationVisitor:
             )
 
         if hasattr(result, "_crtaf_ext_name"):
-            self.extensions_encountered.add(result._crtaf_ext_name)
+            self.extensions_encountered.add(result._crtaf_ext_name)  # type: ignore
         return result
 
 
@@ -244,7 +247,7 @@ class PolymorphicBaseModel(CrtafBaseModel):
         cls,
         type_name: str = "",
         is_polymorphic_base: bool = False,
-        **kwargs: ConfigDict,
+        **kwargs,
     ):
         if is_polymorphic_base:
             # NOTE(cmo): Set up a registry for this instance -- since we're forming multiple polymorphic "trees" of classes for different objects.
@@ -298,7 +301,7 @@ class _AstropyQtyAnnotation:
     ) -> core_schema.CoreSchema:
         def validate_qty(qty: DimensionalQuantity) -> u.Quantity:
             validated_unit = u.Unit(qty.unit)
-            return qty.value << validated_unit
+            return qty.value << validated_unit  # type: ignore
 
         def serialise_qty(qty: u.Quantity):
             value = qty.value
@@ -308,7 +311,7 @@ class _AstropyQtyAnnotation:
                 value = float(value)
             unit = qty.unit
             return {
-                "unit": unit.to_string(),
+                "unit": unit.to_string(),  # type: ignore
                 "value": value,
             }
 
@@ -370,7 +373,7 @@ class AtomicLevel(CrtafBaseModel, IterateQuantitiesMixin, SimplifyAtomicStructur
     @field_validator("energy")
     @classmethod
     def _validate_energy(cls, v: AstropyQty):
-        if v.unit.physical_type == "energy":
+        if v.unit.physical_type == "energy":  # type: ignore
             return v
 
         # NOTE(cmo): This will raise a unit conversion error if it can't be
@@ -473,8 +476,8 @@ class StarkLinearSutton(ElasticBroadening, type_name="Stark_Linear_Sutton"):
             )
 
         if self.n_upper is not None:
-            assert self.n_upper > self.n_lower
-            assert self.n_lower > 0
+            assert self.n_upper > self.n_lower  # type: ignore
+            assert self.n_lower > 0  # type: ignore
 
         return self
 
@@ -498,7 +501,7 @@ class StarkMultiplicative(ElasticBroadening, type_name="Stark_Multiplicative"):
     @field_validator("C_4")
     @classmethod
     def _validate_C_4(cls, value: u.Quantity):
-        if value.unit.physical_type != "volumetric flow rate":
+        if value.unit.physical_type != "volumetric flow rate":  # type: ignore
             raise ValueError(
                 f"C_4 is expected to be convertible to volumetric flow rate. Got units of {value.unit}"
             )
@@ -721,22 +724,22 @@ class TabulatedBoundFree(AtomicBoundFree, type_name="Tabulated"):
 
         intermediate = TabulatedBoundFreeIntermediate.model_validate(v)
         wavelength_unit = u.Unit(intermediate.unit[0])
-        assert wavelength_unit.is_equivalent(
+        assert wavelength_unit.is_equivalent(  # type: ignore
             u.m, equivalencies=u.spectral()
         ), "Wavelength unit (first unit) is not convertible to length."
         sigma_unit = u.Unit(intermediate.unit[1])
-        assert sigma_unit.is_equivalent(
+        assert sigma_unit.is_equivalent(  # type: ignore
             "m2"
         ), "Cross-section unit (second unit) is not convertible to area."
-        wavelengths = np.ascontiguousarray(intermediate.value[:, 0])
-        sigma = np.ascontiguousarray(intermediate.value[:, 1])
+        wavelengths = np.ascontiguousarray(intermediate.value[:, 0])  # type: ignore
+        sigma = np.ascontiguousarray(intermediate.value[:, 1])  # type: ignore
 
         return handler(
             {
                 "type": intermediate.type,
                 "transition": intermediate.transition,
-                "wavelengths": wavelengths << wavelength_unit,
-                "sigma": sigma << sigma_unit,
+                "wavelengths": wavelengths << wavelength_unit,  # type: ignore
+                "sigma": sigma << sigma_unit,  # type: ignore
             }
         )
 
@@ -744,7 +747,7 @@ class TabulatedBoundFree(AtomicBoundFree, type_name="Tabulated"):
     def _serialise(self):
         value = np.hstack((self.wavelengths.value[:, None], self.sigma.value[:, None]))
         value = value.tolist()
-        unit = [self.wavelengths.unit.to_string(), self.sigma.unit.to_string()]
+        unit = [self.wavelengths.unit.to_string(), self.sigma.unit.to_string()]  # type: ignore
         return {
             "type": self.type,
             "transition": self.transition,
@@ -1021,7 +1024,7 @@ class Atom(CrtafBaseModel):
 
         def sort_transitions(transitions: List[str]) -> List[str]:
             # NOTE(cmo): Sort transition keys to be in descending energy order (i.e. [j, i])
-            return sorted(transitions, key=lambda t: energy_eV[t], reverse=True)
+            return sorted(transitions, key=lambda t: energy_eV[t], reverse=True)  # type: ignore
 
         for i, line in enumerate(self.radiative_bound_bound):
             for j in range(2):

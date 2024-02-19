@@ -69,7 +69,7 @@ def simplify_stark_linear(
     c = constant_stark_linear_sutton(n_upper, n_lower)
     return ScaledExponents(
         type="Scaled_Exponents",
-        elastic=b.elastic,
+        elastic=b.elastic,  # type: ignore
         scaling=c.to(u.m**3 / u.s, equivalencies=u.dimensionless_angles()).value,
         temperature_exponent=0.0,
         hydrogen_exponent=0.0,
@@ -85,7 +85,7 @@ def get_overlying_continuum(atom: Atom, level: AtomicLevel):
     next_stage_energies = [
         (name, l.energy) for name, l in atom.levels.items() if l.stage == stage + 1
     ]
-    overlying_cont_name = min(next_stage_energies, key=lambda x: x[1])[0]
+    overlying_cont_name = min(next_stage_energies, key=lambda x: x[1])[0]  # type: ignore
     return overlying_cont_name, atom.levels[overlying_cont_name]
 
 
@@ -113,12 +113,12 @@ def simplify_stark_quadratic(
         overlying_cont_energy,
         stage,
         mass,
-        scaling=b.scaling,
+        scaling=b.scaling,  # type: ignore
     )
 
     return ScaledExponents(
         type="Scaled_Exponents",
-        elastic=b.elastic,
+        elastic=b.elastic,  # type: ignore
         scaling=b.scaling
         * cst.to(u.m**3 / u.s, equivalencies=u.dimensionless_angles()).value,
         temperature_exponent=(1.0 / 6.0),
@@ -130,7 +130,7 @@ def simplify_stark_quadratic(
 def simplify_stark_multiplicative(b: StarkMultiplicative, *args, **kwargs):
     return ScaledExponents(
         type="Scaled_Exponents",
-        elastic=b.elastic,
+        elastic=b.elastic,  # type: ignore
         scaling=b.scaling * b.C_4.to(u.m**3 / u.s).value,
         temperature_exponent=0.0,
         hydrogen_exponent=0.0,
@@ -160,7 +160,7 @@ def simplify_vdw_unsold(b: VdWUnsold, roots: Optional[List[Any]], *args, **kwarg
 
     return ScaledExponents(
         type="Scaled_Exponents",
-        elastic=b.elastic,
+        elastic=b.elastic,  # type: ignore
         scaling=coeff.value,
         temperature_exponent=0.3,
         hydrogen_exponent=1.0,

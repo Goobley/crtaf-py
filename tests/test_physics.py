@@ -41,7 +41,7 @@ def test_sutton():
     )
     # TODO(cmo): This depends on Lightweaver continuing to follow the old, likely incorrect RH interpretation.
     assert stark_32.value == pytest.approx(
-        4.0 * np.pi * 0.425 * b.broaden(atmos, None)[0], abs=0.0, rel=1e-4
+        4.0 * np.pi * 0.425 * b.broaden(atmos, None)[0], abs=0.0, rel=1e-4  # type: ignore
     )
 
 

@@ -1,4 +1,4 @@
-from typing import Any, List, Literal, Optional
+from typing import Any, Final, List, Literal, Optional, ClassVar
 import numpy as np
 from pydantic import field_validator
 from crtaf import WavelengthGrid, AstropyQty, TabulatedGrid
@@ -23,9 +23,9 @@ class LinearCoreExpWings(WavelengthGrid, type_name="LinearCoreExpWings"):
     If q_wing <= 2 * q_core, linear grid spacing will be used for this transition.
     """
 
-    _crtaf_ext_name: str = "linear_core_exp_wings"
+    _crtaf_ext_name: ClassVar[str] = "linear_core_exp_wings"
 
-    type: str = Literal["LinearCoreExpWings"]
+    type: str = Literal["LinearCoreExpWings"]  # type: ignore
     q_core: float
     q_wing: float
     n_lambda: int

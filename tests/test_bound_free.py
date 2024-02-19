@@ -113,9 +113,9 @@ def test_hydrogenic_unit_conversion():
     m = AtomicBoundFree.model_validate(data)
 
     def conversion(q: u.Quantity):
-        if q.unit.physical_type == "area":
+        if q.unit.physical_type == "area":  # type: ignore
             return q.to(u.cm**2)
-        if q.unit.physical_type == "length":
+        if q.unit.physical_type == "length":  # type: ignore
             return q.to(u.cm)
 
     m.apply_unit_conversion(conversion)

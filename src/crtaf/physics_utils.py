@@ -237,7 +237,7 @@ def constant_stark_quadratic(
     v_rel_term = v_rel_const ** (1.0 / 6.0) * (v_rel_e + v_rel_s)
     C4 = c4_traving(upper_energy, lower_energy, overlying_cont_energy, stage, mass=mass)
     C4_23 = (scaling * C4).value ** (2.0 / 3.0)
-    return (11.37 * u.Unit("m3 rad / s")) * v_rel_term * C4_23
+    return (11.37 * u.Unit("m3 rad / s")) * v_rel_term * C4_23  # type:ignore
 
 
 def constant_unsold(

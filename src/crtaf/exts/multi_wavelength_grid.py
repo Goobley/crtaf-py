@@ -1,4 +1,4 @@
-from typing import Any, List, Literal, Optional
+from typing import Any, List, Literal, Optional, ClassVar
 from typing_extensions import Annotated
 from annotated_types import Ge
 import numpy as np
@@ -11,9 +11,9 @@ from crtaf.physics_utils import compute_lambda0
 
 
 class MultiWavelengthGrid(WavelengthGrid, type_name="MULTI"):
-    _crtaf_ext_name: str = "multi_wavelength_grid"
+    _crtaf_ext_name: ClassVar[str] = "multi_wavelength_grid"
 
-    type: str = Literal["MULTI"]
+    type: str = Literal["MULTI"]  # type: ignore
     q_max: Annotated[float, Ge(0.0)]
     q0: Annotated[float, Ge(0.0)]
     n_lambda: int
