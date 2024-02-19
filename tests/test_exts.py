@@ -48,7 +48,7 @@ Data = {
             "label": "Third Level",
         },
     },
-    "radiative_bound_bound": [
+    "lines": [
         {
             "type": "PRD-Voigt",
             "transition": ["second", "first"],
@@ -130,7 +130,7 @@ Data = {
             },
         },
     ],
-    "radiative_bound_free": [
+    "continua": [
         {
             "type": "Tabulated",
             "transition": ["first", "111third"],
@@ -145,7 +145,7 @@ Data = {
             "n_lambda": 40,
         },
     ],
-    "collisional_rates": [
+    "collisions": [
         {
             "transition": ["first", "second"],
             "data": [
@@ -184,24 +184,24 @@ Data = {
 def test_ext_wavelength_simplification():
     data = deepcopy(Data)
     atom = Atom.model_validate(data)
-    assert isinstance(atom.radiative_bound_bound[0].wavelength_grid, LinearCoreExpWings)
+    assert isinstance(atom.lines[0].wavelength_grid, LinearCoreExpWings)
     assert isinstance(
-        atom.radiative_bound_bound[1].wavelength_grid, MultiWavelengthGrid
+        atom.lines[1].wavelength_grid, MultiWavelengthGrid
     )
     visitor = AtomicSimplificationVisitor(default_visitors())
     simplified = atom.simplify_visit(visitor)
 
-    assert simplified.radiative_bound_bound[0].wavelength_grid.type == "Tabulated"
-    assert simplified.radiative_bound_bound[0].wavelength_grid.wavelengths.unit == u.nm
+    assert simplified.lines[0].wavelength_grid.type == "Tabulated"
+    assert simplified.lines[0].wavelength_grid.wavelengths.unit == u.nm
     # NOTE(cmo): Values from Lw implementation, based on default Ca II H with 5 pts.
-    assert simplified.radiative_bound_bound[
+    assert simplified.lines[
         0
     ].wavelength_grid.wavelengths.value == pytest.approx(
         [-5.95850915, -0.11917018, 0.0, 0.11917018, 5.95850915]
     )
 
-    assert simplified.radiative_bound_bound[1].wavelength_grid.type == "Tabulated"
-    assert simplified.radiative_bound_bound[1].wavelength_grid.wavelengths.unit == u.nm
+    assert simplified.lines[1].wavelength_grid.type == "Tabulated"
+    assert simplified.lines[1].wavelength_grid.wavelengths.unit == u.nm
 
     # NOTE(cmo): From Tiago's implementation
     multi_test = (
@@ -216,11 +216,11 @@ def test_ext_wavelength_simplification():
         )
         - 500.0
     )
-    assert simplified.radiative_bound_bound[
+    assert simplified.lines[
         1
     ].wavelength_grid.wavelengths.value == pytest.approx(multi_test)
     # NOTE(cmo): Test linear case (linear in frequency, not wavelength)
-    grid = simplified.radiative_bound_bound[2].wavelength_grid.wavelengths.value
+    grid = simplified.lines[2].wavelength_grid.wavelengths.value
     nu_grid = ((grid + 500.0) * u.nm).to(u.Hz, equivalencies=u.spectral()).value
     dnu = nu_grid[1:] - nu_grid[:-1]
     assert dnu == pytest.approx([dnu[0]] * 4)
@@ -238,10 +238,10 @@ def test_ext_simplification_allowed():
     simplified = atom.simplify_visit(visitor)
     assert simplified.crtaf_meta.extensions[0] == "multi_wavelength_grid"
     assert isinstance(
-        simplified.radiative_bound_bound[0].wavelength_grid, TabulatedGrid
+        simplified.lines[0].wavelength_grid, TabulatedGrid
     )
     assert isinstance(
-        simplified.radiative_bound_bound[2].wavelength_grid, MultiWavelengthGrid
+        simplified.lines[2].wavelength_grid, MultiWavelengthGrid
     )
 
     # NOTE(cmo): Intentional Typo
@@ -250,5 +250,5 @@ def test_ext_simplification_allowed():
     )
     simplified = atom.simplify_visit(visitor)
     assert isinstance(
-        simplified.radiative_bound_bound[1].wavelength_grid, TabulatedGrid
+        simplified.lines[1].wavelength_grid, TabulatedGrid
     )

@@ -582,9 +582,9 @@ class LightweaverAtomConverter:
             crtaf_meta=meta,
             element=element,
             levels=levels,
-            radiative_bound_bound=lines,
-            radiative_bound_free=continua,
-            collisional_rates=collisions,
+            lines=lines,
+            continua=continua,
+            collisions=collisions,
         )
 
     @staticmethod

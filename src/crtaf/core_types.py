@@ -1003,9 +1003,9 @@ class Atom(CrtafBaseModel):
     crtaf_meta: Metadata
     element: Element
     levels: Dict[str, SerializeAsAny[AtomicLevel]]
-    radiative_bound_bound: List[SerializeAsAny[AtomicBoundBound]]
-    radiative_bound_free: List[SerializeAsAny[AtomicBoundFree]]
-    collisional_rates: List[TransCollisionalRates]
+    lines: List[SerializeAsAny[AtomicBoundBound]]
+    continua: List[SerializeAsAny[AtomicBoundFree]]
+    collisions: List[TransCollisionalRates]
 
     @model_validator(mode="after")
     def _validate(self):
@@ -1027,17 +1027,17 @@ class Atom(CrtafBaseModel):
             # NOTE(cmo): Sort transition keys to be in descending energy order (i.e. [j, i])
             return sorted(transitions, key=lambda t: energy_eV[t], reverse=True)  # type: ignore
 
-        for i, line in enumerate(self.radiative_bound_bound):
+        for i, line in enumerate(self.lines):
             for j in range(2):
                 test_transition_present(line.transition[j], "radiative_bound_bound", i)
             line.transition = sort_transitions(line.transition)
 
-        for i, cont in enumerate(self.radiative_bound_free):
+        for i, cont in enumerate(self.continua):
             for j in range(2):
                 test_transition_present(cont.transition[j], "radiative_bound_free", i)
             cont.transition = sort_transitions(cont.transition)
 
-        for i, coll in enumerate(self.collisional_rates):
+        for i, coll in enumerate(self.collisions):
             for j in range(2):
                 test_transition_present(coll.transition[j], "collisional_rates", i)
             coll.transition = sort_transitions(coll.transition)
@@ -1050,9 +1050,9 @@ class Atom(CrtafBaseModel):
 
         root = [self]
         levels = {k: visitor.visit(v, roots=root) for k, v in self.levels.items()}
-        lines = [visitor.visit(v, roots=root) for v in self.radiative_bound_bound]
-        cont = [visitor.visit(v, roots=root) for v in self.radiative_bound_free]
-        coll = [visitor.visit(v, roots=root) for v in self.collisional_rates]
+        lines = [visitor.visit(v, roots=root) for v in self.lines]
+        cont = [visitor.visit(v, roots=root) for v in self.continua]
+        coll = [visitor.visit(v, roots=root) for v in self.collisions]
         new_meta = Metadata(
             version=spec_version,
             level="simplified",
@@ -1088,7 +1088,7 @@ class Atom(CrtafBaseModel):
             crtaf_meta=new_meta,
             element=new_element,
             levels=levels,
-            radiative_bound_bound=lines,
-            radiative_bound_free=cont,
-            collisional_rates=coll,
+            lines=lines,
+            continua=cont,
+            collisions=coll,
         )

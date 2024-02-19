@@ -8,8 +8,8 @@ def test_H_conversion():
     conv = LightweaverAtomConverter()
     crtaf_h = conv.convert(h)
 
-    assert isinstance(crtaf_h.radiative_bound_bound[0], PrdVoigtBoundBound)
-    assert isinstance(crtaf_h.radiative_bound_bound[4], VoigtBoundBound)
+    assert isinstance(crtaf_h.lines[0], PrdVoigtBoundBound)
+    assert isinstance(crtaf_h.lines[4], VoigtBoundBound)
 
 
 def test_CaII_conversion():
@@ -17,5 +17,5 @@ def test_CaII_conversion():
     conv = LightweaverAtomConverter()
     crtaf_ca = conv.convert(ca)
 
-    assert isinstance(crtaf_ca.radiative_bound_bound[0], PrdVoigtBoundBound)
-    assert isinstance(crtaf_ca.radiative_bound_bound[4], VoigtBoundBound)
+    assert isinstance(crtaf_ca.lines[0], PrdVoigtBoundBound)
+    assert isinstance(crtaf_ca.lines[4], VoigtBoundBound)

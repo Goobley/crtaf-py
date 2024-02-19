@@ -45,7 +45,7 @@ Data = {
             "label": "Third Level",
         },
     },
-    "radiative_bound_bound": [
+    "lines": [
         {
             "type": "PRD-Voigt",
             "transition": ["second", "first"],
@@ -98,7 +98,7 @@ Data = {
             },
         },
     ],
-    "radiative_bound_free": [
+    "continua": [
         {
             "type": "Tabulated",
             "transition": ["first", "111third"],
@@ -113,7 +113,7 @@ Data = {
             "n_lambda": 40,
         },
     ],
-    "collisional_rates": [
+    "collisions": [
         {
             "transition": ["first", "second"],
             "data": [
@@ -180,7 +180,7 @@ levels:
     g: 1
     stage: 2
     label: Third Level
-radiative_bound_bound:
+lines:
 - type: PRD-Voigt
   transition: [second, first]
   f_value: 0.1
@@ -205,7 +205,7 @@ radiative_bound_bound:
   wavelength_grid:
     type: Tabulated
     wavelengths: {unit: Angstrom, value: [-10.0, 0.0, 5.0, 10.0]}
-radiative_bound_free:
+continua:
 - type: Tabulated
   transition: [111third, first]
   unit:
@@ -241,7 +241,7 @@ radiative_bound_free:
     unit: nm
     value: 45.0
   n_lambda: 40
-collisional_rates:
+collisions:
 - transition: [second, first]
   data:
   - type: Omega
@@ -313,7 +313,7 @@ levels:
     energy_eV:
       unit: eV
       value: 0.09782353256379502
-radiative_bound_bound:
+lines:
 - type: PRD-Voigt
   transition: [second, first]
   f_value: 0.1
@@ -379,7 +379,7 @@ radiative_bound_bound:
   lambda0:
     unit: nm
     value: 30030.030030030026
-radiative_bound_free:
+continua:
 - type: Tabulated
   transition: [111third, first]
   unit:
@@ -415,7 +415,7 @@ radiative_bound_free:
     unit: nm
     value: 45.0
   n_lambda: 40
-collisional_rates:
+collisions:
 - transition: [second, first]
   data:
   - type: Omega
@@ -471,7 +471,7 @@ def test_yaml_partial():
     data = deepcopy(Data)
     yaml = ruamel.yaml.YAML(typ="rt")
     atom = Atom.model_validate(data)
-    d = atom.collisional_rates[0].yaml_dict()
+    d = atom.collisions[0].yaml_dict()
 
     out_stream = StringIO()
     yaml.dump(d, out_stream)
@@ -506,4 +506,4 @@ data:
     assert rate.data.value[1] == 2.0
 
     atom = Atom.yaml_loads(high_level_yaml)
-    assert isinstance(atom.radiative_bound_bound[0].broadening[0], NaturalBroadening)
+    assert isinstance(atom.lines[0].broadening[0], NaturalBroadening)
