@@ -73,7 +73,7 @@ def simplify_stark_linear(
         scaling=c.to(u.m**3 / u.s, equivalencies=u.dimensionless_angles()).value,
         temperature_exponent=0.0,
         hydrogen_exponent=0.0,
-        electron_exponent=2 / 3,
+        electron_exponent=2.0 / 3.0,
     )
 
 

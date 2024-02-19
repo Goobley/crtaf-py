@@ -49,7 +49,11 @@ def simplify_linear_core_exp_wings(
     beta = 1.0
     if quad.q_wing > 2.0 * quad.q_core:
         beta = quad.q_wing / (2.0 * quad.q_core)
-    n_lambda_half = quad.n_lambda // 2
+
+    if quad.n_lambda % 2 == 0:
+        n_lambda_half = (quad.n_lambda - 1) // 2
+    else:
+        n_lambda_half = quad.n_lambda // 2
     n_lambda_half += 1
 
     y = beta + np.sqrt(beta**2 + (beta - 1.0) * n_lambda_half + 2.0 - 3.0 * beta)
