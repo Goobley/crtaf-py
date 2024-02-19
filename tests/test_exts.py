@@ -185,18 +185,14 @@ def test_ext_wavelength_simplification():
     data = deepcopy(Data)
     atom = Atom.model_validate(data)
     assert isinstance(atom.lines[0].wavelength_grid, LinearCoreExpWings)
-    assert isinstance(
-        atom.lines[1].wavelength_grid, MultiWavelengthGrid
-    )
+    assert isinstance(atom.lines[1].wavelength_grid, MultiWavelengthGrid)
     visitor = AtomicSimplificationVisitor(default_visitors())
     simplified = atom.simplify_visit(visitor)
 
     assert simplified.lines[0].wavelength_grid.type == "Tabulated"
     assert simplified.lines[0].wavelength_grid.wavelengths.unit == u.nm
     # NOTE(cmo): Values from Lw implementation, based on default Ca II H with 5 pts.
-    assert simplified.lines[
-        0
-    ].wavelength_grid.wavelengths.value == pytest.approx(
+    assert simplified.lines[0].wavelength_grid.wavelengths.value == pytest.approx(
         [-5.95850915, -0.11917018, 0.0, 0.11917018, 5.95850915]
     )
 
@@ -216,9 +212,9 @@ def test_ext_wavelength_simplification():
         )
         - 500.0
     )
-    assert simplified.lines[
-        1
-    ].wavelength_grid.wavelengths.value == pytest.approx(multi_test)
+    assert simplified.lines[1].wavelength_grid.wavelengths.value == pytest.approx(
+        multi_test
+    )
     # NOTE(cmo): Test linear case (linear in frequency, not wavelength)
     grid = simplified.lines[2].wavelength_grid.wavelengths.value
     nu_grid = ((grid + 500.0) * u.nm).to(u.Hz, equivalencies=u.spectral()).value
@@ -237,18 +233,12 @@ def test_ext_simplification_allowed():
     )
     simplified = atom.simplify_visit(visitor)
     assert simplified.crtaf_meta.extensions[0] == "multi_wavelength_grid"
-    assert isinstance(
-        simplified.lines[0].wavelength_grid, TabulatedGrid
-    )
-    assert isinstance(
-        simplified.lines[2].wavelength_grid, MultiWavelengthGrid
-    )
+    assert isinstance(simplified.lines[0].wavelength_grid, TabulatedGrid)
+    assert isinstance(simplified.lines[2].wavelength_grid, MultiWavelengthGrid)
 
     # NOTE(cmo): Intentional Typo
     visitor = AtomicSimplificationVisitor(
         default_visitors(), extensions=["______multi_wavelength_grid"]
     )
     simplified = atom.simplify_visit(visitor)
-    assert isinstance(
-        simplified.lines[1].wavelength_grid, TabulatedGrid
-    )
+    assert isinstance(simplified.lines[1].wavelength_grid, TabulatedGrid)

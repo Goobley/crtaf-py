@@ -164,14 +164,9 @@ def test_atom_simplification():
     atom = Atom.model_validate(data)
     simplified = atom.simplify_visit(visitor)
     assert simplified.continua[1].sigma_peak.unit == u.Unit("m2")
-    assert simplified.lines[
-        1
-    ].wavelength_grid.wavelengths.unit == u.Unit("nm")
+    assert simplified.lines[1].wavelength_grid.wavelengths.unit == u.Unit("nm")
 
-    assert (
-        data["lines"][1]["broadening"][3]["type"]
-        == "Stark_Linear_Sutton"
-    )
+    assert data["lines"][1]["broadening"][3]["type"] == "Stark_Linear_Sutton"
     del data["lines"][1]["broadening"][3]["n_lower"]
     with pytest.raises(pydantic.ValidationError):
         Atom.model_validate(data)
