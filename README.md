@@ -1,5 +1,5 @@
-⚛ crtaf ⚛
-==========
+crtaf
+=====
 Python utilities for the [Common Radiative Transfer Atomic Format](https://github.com/Goobley/CommonRTAtomicFormat).
 -------------------------------------------------------------------------------------------------------------------
 
