@@ -281,6 +281,7 @@ element:
   symbol: Ca
   atomic_mass: 40.005
   abundance: 6.0
+  Z: 20
 levels:
   first:
     energy:

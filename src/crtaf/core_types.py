@@ -1,8 +1,9 @@
-from copy import copy
+from copy import copy, deepcopy
 from io import StringIO
 from typing import Any, Callable, ClassVar, Dict, List, Literal, Optional, Union
 from typing_extensions import Annotated
 from annotated_types import Gt, Le
+import lightweaver as lw
 import numpy as np
 from pydantic import (
     BaseModel,
@@ -1043,6 +1044,10 @@ class Atom(CrtafBaseModel):
         return self
 
     def simplify_visit(self, visitor: AtomicSimplificationVisitor):
+        # TODO(cmo): This is a HACK to prevent the state of visitor spilling out
+        # and allow resuse. Should really modify the visitor state lifetime.
+        visitor = deepcopy(visitor)
+
         root = [self]
         levels = {k: visitor.visit(v, roots=root) for k, v in self.levels.items()}
         lines = [visitor.visit(v, roots=root) for v in self.radiative_bound_bound]
@@ -1054,9 +1059,34 @@ class Atom(CrtafBaseModel):
             extensions=list(visitor.extensions_encountered),
             notes=self.crtaf_meta.notes,
         )
+
+        atomic_mass = self.element.atomic_mass
+        if atomic_mass is None:
+            atomic_mass = lw.PeriodicTable[self.element.symbol].mass
+        abundance = self.element.abundance
+        if abundance is None:
+            abundance = (
+                np.log10(
+                    lw.DefaultAtomicAbundance[self.element.symbol]
+                    / lw.DefaultAtomicAbundance["H"]
+                )
+                + 12.0
+            )
+        Z = self.element.Z
+        if Z is None:
+            Z = lw.PeriodicTable[self.element.symbol].Z
+        N = self.element.N
+
+        new_element = Element(
+            symbol=self.element.symbol,
+            atomic_mass=atomic_mass,
+            abundance=abundance,
+            Z=Z,
+            N=N,
+        )
         return Atom(
             crtaf_meta=new_meta,
-            element=self.element,
+            element=new_element,
             levels=levels,
             radiative_bound_bound=lines,
             radiative_bound_free=cont,
