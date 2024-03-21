@@ -163,7 +163,10 @@ def test_atom_simplification():
 
     atom = Atom.model_validate(data)
     simplified = atom.simplify_visit(visitor)
-    assert simplified.continua[1].sigma_peak.unit == u.Unit("m2")
+    assert simplified.continua[1].sigma.unit == u.Unit("m2")
+    assert simplified.continua[1].sigma[-1].value == pytest.approx(
+        atom.continua[1].sigma_peak.to("m2").value, 1e-6
+    )
     assert simplified.lines[1].wavelength_grid.wavelengths.unit == u.Unit("nm")
 
     assert data["lines"][1]["broadening"][3]["type"] == "Stark_Linear_Sutton"

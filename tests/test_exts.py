@@ -141,7 +141,7 @@ Data = {
             "type": "Hydrogenic",
             "transition": ["second", "111third"],
             "sigma_peak": 120 * u.barn,
-            "lambda_min": 45.0 * u.nm,
+            "lambda_min": 0.1 * u.nm,
             "n_lambda": 40,
         },
     ],

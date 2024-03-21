@@ -1,5 +1,6 @@
 # NOTE(cmo): Using the harness here to test the new crtaf behaviour added to Lw
 
+from copy import deepcopy
 from matplotlib import pyplot as plt
 import pytest
 import lightweaver as lw
@@ -84,7 +85,18 @@ def test_lw_H6():
         h_model=h_crtaf_simplified_roundtrip, active_atoms=["H"]
     )
     npt.assert_allclose(h_wave_baseline, h_wave_roundtrip_2)
+
     with pytest.raises(AssertionError):
         # NOTE(cmo): This is expected to fail doe to the difference (significant
         # in Linear Stark broadening (a factor of 5!))
         npt.assert_allclose(roundtrip_H_simplified, baseline_H, atol=0.0)
+
+    # NOTE(cmo): Test the continuum conversion (using the non-simplified lines)
+    h_crtaf_simplified_mix = deepcopy(h_crtaf_simplified)
+    h_crtaf_simplified_mix.lines = h_crtaf.lines
+    h_mix_lw = from_crtaf(h_crtaf_simplified_mix)
+    h_wave_roundtrip_3, roundtrip_H_mix = falc_model(
+        h_model=h_mix_lw, active_atoms=["H"]
+    )
+    npt.assert_allclose(h_wave_baseline, h_wave_roundtrip_3)
+    npt.assert_allclose(roundtrip_H_mix, baseline_H, atol=0.0, rtol=2e-4)

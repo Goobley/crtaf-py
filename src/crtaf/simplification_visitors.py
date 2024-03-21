@@ -37,6 +37,7 @@ from crtaf.physics_utils import (
     constant_stark_linear_sutton,
     constant_stark_quadratic,
     constant_unsold,
+    gaunt_bf,
     n_eff,
 )
 
@@ -214,8 +215,41 @@ def simplify_voigt_line(
     )
 
 
-def simplify_hydrogenic_cont(c: HydrogenicBoundFree, *args, **kwargs):
-    return c.simplify()
+def simplify_hydrogenic_cont(
+    c: HydrogenicBoundFree, roots: Optional[List[Any]], *args, **kwargs
+):
+
+    if roots is None:
+        raise ValueError("roots must be provided (call via visitor interface).")
+
+    atom = roots[0]
+    lambda_edge = compute_lambda0(atom, c)
+    if c.lambda_min >= lambda_edge:
+        raise ValueError("Min lambda for a continuum can't be bigger than its edge!")
+
+    wavelengths = (
+        np.linspace(
+            c.lambda_min.to(u.nm).value,
+            # NOTE(cmo): We pull back from the edge very slightly to avoid codes like Lw potentially chopping it off.
+            lambda_edge.to(u.nm).value - 1e-8,
+            c.n_lambda,
+        )
+        << u.nm
+    )
+    z_eff = atom.levels[c.transition[0]].stage - 1
+    e_upper = atom.levels[c.transition[0]].energy.to(u.J, equivalencies=u.spectral())
+    e_lower = atom.levels[c.transition[1]].energy.to(u.J, equivalencies=u.spectral())
+    n_effective = n_eff(e_upper, e_lower, z_eff)
+    g_bf0 = gaunt_bf(lambda_edge, z_eff, n_effective)
+    g_bf = gaunt_bf(wavelengths, z_eff, n_effective)
+    sigma = c.sigma_peak.to(u.m**2) * g_bf / g_bf0 * (wavelengths / lambda_edge) ** 3
+
+    return TabulatedBoundFree(
+        type="Tabulated",
+        transition=c.transition,
+        wavelengths=wavelengths.to(u.nm),
+        sigma=sigma.to(u.m**2),
+    )
 
 
 def simplify_tabulated_cont(c: TabulatedBoundFree, *args, **kwargs):

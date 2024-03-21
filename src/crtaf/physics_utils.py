@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 import astropy.constants as const
 import astropy.units as u
 import lightweaver as lw
 import numpy as np
 from lightweaver.barklem import Barklem
 
-from crtaf.core_types import Atom, AtomicBoundBound
+from crtaf.core_types import Atom, AtomicBoundBound, AtomicBoundFree
 
 
 def n_eff(
@@ -42,7 +42,40 @@ def n_eff(
     return Z * np.sqrt((ry_h / (e_u - e_l)).to(u.J / u.J))
 
 
-def compute_lambda0(atom: Atom, line: AtomicBoundBound):
+def gaunt_bf(
+    wavelength: Union[u.Quantity[u.nm], u.Quantity[u.Hz]], Z: int, n_eff: float
+):
+    """
+    Calculate the bound-free Gaunt factor. Follows Seaton 1960 recipe, as in RH
+    (https://ui.adsabs.harvard.edu/abs/1960RPPh...23..313S/abstract).
+
+    Parameters
+    ----------
+    wavelength : float or array-like (wavelength or frequency)
+        The wavelength to compute the Gaunt factor at.
+    Z : int
+        The effective nuclear charge of the specie.
+    n_eff : float
+        The effective principal quantum number of the transition.
+    """
+    wavelength = wavelength.to(u.m, equivalencies=u.spectral())
+    x = 1.0 / (wavelength * Z**2 * const.Ryd)
+    x = x.value
+    x3 = x ** (1.0 / 3.0)
+    nsqx = 1.0 / (n_eff**2 * x)
+    g_bf = (
+        1.0
+        + 0.1728 * x3 * (1.0 - 2.0 * nsqx)
+        - 0.0496 * x3**2 * (1.0 - (1.0 - nsqx) * (2.0 / 3.0) * nsqx)
+    )
+
+    if np.any(g_bf < 0):
+        raise ValueError("Gaunt factor negative!")
+
+    return g_bf
+
+
+def compute_lambda0(atom: Atom, line: Union[AtomicBoundBound, AtomicBoundFree]):
     """
     Calculate the rest wavelength of a transition in nm (as a Quantity).
 
@@ -50,7 +83,7 @@ def compute_lambda0(atom: Atom, line: AtomicBoundBound):
     ----------
     atom :  Atom
         The model to source the level data from
-    line :  AtomicBoundBound
+    line :  AtomicBoundBound or AtomicBoundFree
         The specified transition on atom.
     """
     trans = line.transition

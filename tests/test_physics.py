@@ -9,6 +9,7 @@ from crtaf.physics_utils import (
     constant_stark_linear_sutton,
     constant_stark_quadratic,
     constant_unsold,
+    gaunt_bf,
 )
 from lightweaver.rh_atoms import CaII_atom, H_6_atom
 from lightweaver.broadening import (
@@ -105,3 +106,20 @@ def test_einstein_coeffs():
     assert ec.Bji_wavelength.value == pytest.approx(4.5115938068e-8, abs=0.0, rel=1e-6)
     assert ec.Bij_wavelength.value == pytest.approx(1.01510860e-7, abs=0.0, rel=1e-6)
     assert ec.Bij_wavelength.unit == u.Unit("m3 / J")
+
+
+def test_gaunt_bf():
+    # NOTE(cmo): Directly following Tiago's tests
+    assert gaunt_bf(500 * u.nm, 2, 5) == gaunt_bf(const.c / (500 * u.nm), 2, 5)
+
+    assert np.all(
+        gaunt_bf(np.ones(10) * 500 * u.nm, 2, 5) == gaunt_bf(500 * u.nm, 2, 5)
+    )
+    assert gaunt_bf(500 * u.nm, 1, 1.1) == pytest.approx(
+        0.023132239149173173, abs=0.0, rel=1e-6
+    )
+    assert gaunt_bf(100 * u.nm, 2, 5) == pytest.approx(
+        1.0517607988011628, abs=0.0, rel=1e-6
+    )
+    with pytest.raises(ValueError):
+        gaunt_bf(500 * u.nm, 1, 1)
