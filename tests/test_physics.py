@@ -3,6 +3,8 @@ import pytest
 import astropy.units as u
 import astropy.constants as const
 import lightweaver as lw
+from crtaf.core_types import AtomicSimplificationVisitor
+from crtaf.from_lightweaver import LightweaverAtomConverter
 from crtaf.physics_utils import (
     EinsteinCoeffs,
     c4_traving,
@@ -17,6 +19,8 @@ from lightweaver.broadening import (
     HydrogenLinearStarkBroadening as LwHydrogenLinearStarkBroadening,
     VdwUnsold as LwVdwUnsold,
 )
+
+from crtaf.simplification_visitors import default_visitors, simplify_voigt_line
 
 
 def test_sutton():
@@ -123,3 +127,18 @@ def test_gaunt_bf():
     )
     with pytest.raises(ValueError):
         gaunt_bf(500 * u.nm, 1, 1)
+
+
+def test_simplification_vs_lw():
+    h = H_6_atom()
+    line = h.lines[4]
+    conv = LightweaverAtomConverter()
+    crtaf_h = conv.convert(h)
+    visitor = AtomicSimplificationVisitor(default_visitors())
+    simplified_model = crtaf_h.simplify_visit(visitor)
+    simplified_line = simplified_model.lines[4]
+
+    assert simplified_line.Aji.value == pytest.approx(line.Aji)
+    assert simplified_line.Bji.value == pytest.approx(line.Bji)
+    assert simplified_line.Bij.value == pytest.approx(line.Bij)
+    assert simplified_line.lambda0.value == pytest.approx(line.lambda0)

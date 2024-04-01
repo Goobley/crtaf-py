@@ -331,13 +331,13 @@ lines:
       value: 0.01
   Aji:
     unit: 1 / s
-    value: 14793.150991996721
+    value: 3698.2877479991803
   Bji:
     unit: m2 / (J s)
-    value: 1008373122939940.2
+    value: 252093280734985.06
   Bji_wavelength:
     unit: m3 / J
-    value: 0.00303327713637598
+    value: 0.000758319284093995
   Bij:
     unit: m2 / (J s)
     value: 504186561469970.1
@@ -363,13 +363,13 @@ lines:
     wavelengths: {unit: nm, value: [-1.0, 0.0, 0.5, 1.0]}
   Aji:
     unit: 1 / s
-    value: 18195.575720155968
+    value: 4548.893930038992
   Bji:
     unit: m2 / (J s)
-    value: 1240298941216126.5
+    value: 310074735304031.6
   Bji_wavelength:
     unit: m3 / J
-    value: 0.0037309308777424555
+    value: 0.0009327327194356139
   Bij:
     unit: m2 / (J s)
     value: 620149470608063.2
@@ -500,6 +500,7 @@ def test_yaml_regression():
     out_stream = StringIO()
     yaml.dump(simplified_d, out_stream)
     result = out_stream.getvalue()
+    print(result)
     assert result == low_level_yaml
     assert simplified.yaml_dumps() == low_level_yaml
 

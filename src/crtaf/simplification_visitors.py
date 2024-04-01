@@ -196,9 +196,9 @@ def simplify_voigt_line(
 
     lambda0 = compute_lambda0(atom, l)
     lambda0_m = lambda0.to(u.m)
-    g_ratio = atom.levels[trans[0]].g / atom.levels[trans[1]].g
+    g_ij = atom.levels[trans[1]].g / atom.levels[trans[0]].g
 
-    coeffs = EinsteinCoeffs.compute(lambda0_m, g_ratio, l.f_value)
+    coeffs = EinsteinCoeffs.compute(lambda0_m, g_ij, l.f_value)
 
     return l.__class__(
         type=l.type,
