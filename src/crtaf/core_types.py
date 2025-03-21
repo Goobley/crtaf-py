@@ -18,7 +18,7 @@ from pydantic import (
 )
 from pydantic.config import ConfigDict
 import pydantic_core.core_schema as core_schema
-from pydantic_numpy import NpNDArrayFp64
+from pydantic_numpy.typing import NpNDArrayFp64, NpNDArray
 import astropy.units as u
 import ruamel.yaml
 from ruamel.yaml import CommentedMap, CommentedSeq
@@ -286,7 +286,7 @@ class PolymorphicBaseModel(CrtafBaseModel):
 
 class DimensionalQuantity(CrtafBaseModel):
     unit: str
-    value: Union[float, NpNDArrayFp64]
+    value: Union[float, NpNDArray]
 
     @field_serializer("value")
     def serialize_value(self, value, _info):
@@ -302,6 +302,8 @@ class _AstropyQtyAnnotation:
     ) -> core_schema.CoreSchema:
         def validate_qty(qty: DimensionalQuantity) -> u.Quantity:
             validated_unit = u.Unit(qty.unit)
+            if not isinstance(qty.value, float):
+                qty.value = qty.value.astype(np.float64)
             return qty.value << validated_unit  # type: ignore
 
         def serialise_qty(qty: u.Quantity):
